@@ -17,7 +17,7 @@ class FriendList extends StatelessWidget {
           margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundImage: AssetImage(friend.profileImage),
+              backgroundImage: AssetImage("images/Ellipse 47.png"),
             ),
             title: Text(friend.name),
             subtitle: Text(friend.upcomingEvents > 0

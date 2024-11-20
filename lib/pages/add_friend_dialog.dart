@@ -1,4 +1,3 @@
-// pages/add_friend_dialog.dart
 import 'package:flutter/material.dart';
 
 class AddFriendDialog extends StatelessWidget {
@@ -24,7 +23,7 @@ class AddFriendDialog extends StatelessWidget {
         ),
         ElevatedButton(
           onPressed: () {
-            // TODO: Save friend to list
+            // TODO: Add friend logic
             Navigator.pop(context);
           },
           child: Text('Add'),
