@@ -16,7 +16,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
   late TextEditingController categoryController;
   late TextEditingController priceController;
   late TextEditingController statusController;
-  late bool isPledged;  // Ensure isPledged is declared as late but not initialized
+  late bool isPledged;
 
   @override
   void initState() {
@@ -26,7 +26,7 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
     categoryController = TextEditingController(text: widget.gift.category);
     priceController = TextEditingController(text: widget.gift.price.toString());
     statusController = TextEditingController(text: widget.gift.status);
-    isPledged = widget.gift.isPledged;  // Initialize here, directly from widget.gift
+    isPledged = widget.gift.isPledged;
   }
 
   @override
@@ -40,30 +40,35 @@ class _GiftDetailsPageState extends State<GiftDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
+            TextFormField(
               controller: nameController,
-              decoration: InputDecoration(labelText: 'Gift Name'),
+              decoration: InputDecoration(labelText: 'Gift Name', border: OutlineInputBorder()),
               enabled: !isPledged,
             ),
-            TextField(
+            SizedBox(height: 10),
+            TextFormField(
               controller: descriptionController,
-              decoration: InputDecoration(labelText: 'Description'),
+              decoration: InputDecoration(labelText: 'Description', border: OutlineInputBorder()),
               enabled: !isPledged,
+              maxLines: 3,
             ),
-            TextField(
+            SizedBox(height: 10),
+            TextFormField(
               controller: categoryController,
-              decoration: InputDecoration(labelText: 'Category'),
+              decoration: InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
               enabled: !isPledged,
             ),
-            TextField(
+            SizedBox(height: 10),
+            TextFormField(
               controller: priceController,
-              decoration: InputDecoration(labelText: 'Price'),
+              decoration: InputDecoration(labelText: 'Price', border: OutlineInputBorder()),
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               enabled: !isPledged,
             ),
+            SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: statusController.text,
-              decoration: InputDecoration(labelText: 'Status'),
+              decoration: InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
               items: ['Available', 'Pledged'].map((status) {
                 return DropdownMenuItem(value: status, child: Text(status));
               }).toList(),

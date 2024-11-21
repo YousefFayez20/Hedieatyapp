@@ -18,12 +18,10 @@ class _GiftListPageState extends State<GiftListPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize with dummy data relevant to the passed event
     gifts = fetchGiftsForEvent(widget.event);
   }
 
   List<Gift> fetchGiftsForEvent(Event event) {
-    // Here you can define gifts specific to each event if necessary
     return [
       Gift(name: 'Bluetooth Speaker', description: 'High quality sound', category: 'Electronics', price: 150.0, status: 'Available', isPledged: false),
       Gift(name: 'Leather Wallet', description: 'Genuine leather wallet', category: 'Accessories', price: 49.99, status: 'Pledged', isPledged: true),
@@ -49,16 +47,28 @@ class _GiftListPageState extends State<GiftListPage> {
         itemCount: gifts.length,
         itemBuilder: (context, index) {
           final gift = gifts[index];
-          return ListTile(
-            title: Text(gift.name),
-            subtitle: Text('${gift.category} - \$${gift.price.toStringAsFixed(2)}'),
-            trailing: IconButton(
-              icon: Icon(Icons.delete),
-              onPressed: gift.isPledged ? null : () => _deleteGift(index),
-            ),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: gift)),
+          return Card(
+            margin: const EdgeInsets.all(8),
+            child: ListTile(
+              leading: Icon(Icons.card_giftcard, color: Theme.of(context).primaryColor),
+              title: Text(gift.name, style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${gift.category} - \$${gift.price.toStringAsFixed(2)}'),
+              trailing: IconButton(
+                icon: Icon(gift.isPledged ? Icons.check : Icons.edit),
+                color: gift.isPledged ? Colors.green : Colors.blue,
+                onPressed: () {
+                  if (!gift.isPledged) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: gift)),
+                    );
+                  }
+                },
+              ),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: gift)),
+              ),
             ),
           );
         },
