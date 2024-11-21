@@ -1,57 +1,28 @@
+// lib/pages/event_list_page.dart
 import 'package:flutter/material.dart';
-import '../models/event.dart';
-import 'add_event_page.dart';
+import '../models/gift.dart'; // Adjust the import path as needed
 
-class EventListPage extends StatefulWidget {
-  @override
-  _EventListPageState createState() => _EventListPageState();
-}
+class EventGiftDetailsPage extends StatelessWidget {
+  final Gift gift;
 
-class _EventListPageState extends State<EventListPage> {
-  final List<Event> events = [];
-
-  void _addEvent(Event event) {
-    setState(() {
-      events.add(event);
-    });
-  }
+  EventGiftDetailsPage({required this.gift});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Events')),
-      body: events.isEmpty
-          ? Center(child: Text('No events added yet.'))
-          : ListView.builder(
-        itemCount: events.length,
-        itemBuilder: (context, index) {
-          final event = events[index];
-          return ListTile(
-            title: Text(event.name),
-            subtitle: Text('${event.category} - ${event.date.toLocal().toShortString()}'),
-            trailing: Text(
-              event.status,
-              style: TextStyle(
-                color: event.status == 'Upcoming'
-                    ? Colors.green
-                    : event.status == 'Current'
-                    ? Colors.blue
-                    : Colors.grey,
-              ),
-            ),
-          );
-        },
+      appBar: AppBar(
+        title: Text(gift.name),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AddEventPage(onAdd: _addEvent),
-            ),
-          );
-        },
-        child: Icon(Icons.add),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${gift.name}', style: TextStyle(fontSize: 18)),
+            Text('Category: ${gift.category}', style: TextStyle(fontSize: 16)),
+            Text('Status: ${gift.status}', style: TextStyle(fontSize: 16)),
+          ],
+        ),
       ),
     );
   }

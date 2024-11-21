@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 
+import 'my_pledged_gifts_page.dart';
+
 class UserProfilePage extends StatefulWidget {
   @override
   _UserProfilePageState createState() => _UserProfilePageState();
@@ -81,7 +83,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   void _navigateToPledgedGifts() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => PledgedGiftsPage()),
+      MaterialPageRoute(builder: (context) => MyPledgedGiftsPage()),
     );
   }
 

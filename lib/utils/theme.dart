@@ -1,4 +1,3 @@
-// utils/theme.dart
 import 'package:flutter/material.dart';
 
 final ThemeData appTheme = ThemeData(
@@ -10,5 +9,10 @@ final ThemeData appTheme = ThemeData(
   ),
   floatingActionButtonTheme: FloatingActionButtonThemeData(
     backgroundColor: Color.fromRGBO(21, 135, 112, 1),
+  ),
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(
+    backgroundColor: Color.fromRGBO(70, 5, 6, 80),  // Set the background color
+    selectedItemColor: Colors.white,                  // Set the color of the selected item
+    unselectedItemColor: Colors.green,              // Set the color of the unselected items
   ),
 );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart'; // Navigate to LoginPage
+import 'login_page.dart'; // Make sure this is correctly pointing to the login page
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key});
@@ -19,29 +19,7 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Stack(
-            children: [
-              Image.asset(
-                'images/shap.png',
-                fit: BoxFit.cover,
-              ),
-              Positioned(
-                top: 10,
-                left: 0,
-                child: ClipRect(
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    widthFactor: 0.1,
-                    heightFactor: 0.2,
-                    child: Container(
-                      width: screenWidth * 0.4,
-                      height: screenHeight * 0.2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          // Assuming an image asset here as a logo
           Center(
             child: Container(
               margin: EdgeInsets.only(top: screenHeight * 0.1),

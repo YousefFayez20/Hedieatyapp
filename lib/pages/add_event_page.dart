@@ -12,6 +12,7 @@ class AddEventPage extends StatefulWidget {
 
 class _AddEventPageState extends State<AddEventPage> {
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _status = 'Upcoming';
@@ -25,9 +26,13 @@ class _AddEventPageState extends State<AddEventPage> {
     }
 
     final newEvent = Event(
+      id: DateTime.now().toString(), // Generate a unique ID for the event
       name: _nameController.text,
+      description: _descriptionController.text,
       date: _selectedDate,
+      location: 'Specify location here', // You might want to add a location field
       category: _categoryController.text,
+      userId: 'Specify user ID here', // Manage user context
       status: _status,
     );
 
@@ -39,11 +44,11 @@ class _AddEventPageState extends State<AddEventPage> {
     final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
-      firstDate: DateTime(2020),
+      firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
 
-    if (pickedDate != null) {
+    if (pickedDate != null && pickedDate != _selectedDate) {
       setState(() {
         _selectedDate = pickedDate;
       });
@@ -63,13 +68,18 @@ class _AddEventPageState extends State<AddEventPage> {
               decoration: InputDecoration(labelText: 'Event Name'),
             ),
             TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(labelText: 'Event Description'),
+            ),
+            TextField(
               controller: _categoryController,
               decoration: InputDecoration(labelText: 'Category'),
             ),
             Row(
               children: [
-                Text('Date: ${_selectedDate.toLocal().toShortString()}'),
-                Spacer(),
+                Expanded(
+                  child: Text('Date: ${_selectedDate.toLocal().toShortString()}'),
+                ),
                 IconButton(
                   icon: Icon(Icons.calendar_today),
                   onPressed: _pickDate,
