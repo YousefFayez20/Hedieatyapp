@@ -14,6 +14,8 @@ class AddEventDialog extends StatefulWidget {
 class _AddEventDialogState extends State<AddEventDialog> {
   late TextEditingController nameController;
   late TextEditingController categoryController;
+  late TextEditingController locationController;
+  late TextEditingController descriptionController;
   late TextEditingController dateController;
   DateTime? selectedDate;
   String status = 'Upcoming';
@@ -23,9 +25,13 @@ class _AddEventDialogState extends State<AddEventDialog> {
     super.initState();
     nameController = TextEditingController(text: widget.event?.name ?? '');
     categoryController = TextEditingController(text: widget.event?.category ?? '');
+    locationController = TextEditingController(text: widget.event?.location ?? '');
+    descriptionController = TextEditingController(text: widget.event?.description ?? '');
     selectedDate = widget.event?.date ?? DateTime.now();
     status = widget.event?.status ?? 'Upcoming';
-    dateController = TextEditingController(text: selectedDate!.toLocal().toString().split(' ')[0]);
+    dateController = TextEditingController(
+      text: selectedDate!.toLocal().toString().split(' ')[0],
+    );
   }
 
   void _pickDate() async {
@@ -44,19 +50,19 @@ class _AddEventDialogState extends State<AddEventDialog> {
   }
 
   void _saveEvent() {
-    if (nameController.text.isEmpty || categoryController.text.isEmpty) {
+    if (nameController.text.isEmpty || categoryController.text.isEmpty || locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill all fields')),
+        SnackBar(content: Text('Please fill all required fields')),
       );
       return;
     }
     Event newEvent = Event(
-      id: widget.event?.id ?? DateTime.now().toString(),
+      id: widget.event?.id, // Leave null for new events, database auto-generates
       name: nameController.text,
       date: selectedDate!,
-      location: widget.event?.location ?? 'Default location',
-      description: widget.event?.description ?? 'No description',
-      userId: widget.event?.userId ?? 'Default User ID',
+      location: locationController.text,
+      description: descriptionController.text,
+      userId: widget.event?.userId ?? 'Default User ID', // Replace with actual user ID context
       category: categoryController.text,
       status: status,
     );
@@ -74,11 +80,20 @@ class _AddEventDialogState extends State<AddEventDialog> {
           children: [
             TextField(
               controller: nameController,
-              decoration: InputDecoration(labelText: 'Event Name'),
+              decoration: InputDecoration(labelText: 'Event Name *'),
             ),
             TextField(
               controller: categoryController,
-              decoration: InputDecoration(labelText: 'Category'),
+              decoration: InputDecoration(labelText: 'Category *'),
+            ),
+            TextField(
+              controller: locationController,
+              decoration: InputDecoration(labelText: 'Location *'),
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: InputDecoration(labelText: 'Description'),
+              maxLines: 3,
             ),
             GestureDetector(
               onTap: _pickDate,
@@ -86,7 +101,7 @@ class _AddEventDialogState extends State<AddEventDialog> {
                 child: TextField(
                   controller: dateController,
                   decoration: InputDecoration(
-                    labelText: 'Date (YYYY-MM-DD)',
+                    labelText: 'Date (YYYY-MM-DD) *',
                     suffixIcon: Icon(Icons.calendar_today),
                   ),
                 ),
@@ -99,7 +114,8 @@ class _AddEventDialogState extends State<AddEventDialog> {
                   status = newValue!;
                 });
               },
-              items: <String>['Upcoming', 'Current', 'Past'].map<DropdownMenuItem<String>>((String value) {
+              items: <String>['Upcoming', 'Current', 'Past']
+                  .map<DropdownMenuItem<String>>((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),

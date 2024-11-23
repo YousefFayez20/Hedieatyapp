@@ -14,25 +14,28 @@ class _AddEventPageState extends State<AddEventPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _categoryController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
   String _status = 'Upcoming';
 
   void _saveEvent() {
-    if (_nameController.text.isEmpty || _categoryController.text.isEmpty) {
+    if (_nameController.text.isEmpty ||
+        _categoryController.text.isEmpty ||
+        _locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill all fields')),
+        SnackBar(content: Text('Please fill all required fields')),
       );
       return;
     }
 
     final newEvent = Event(
-      id: DateTime.now().toString(), // Generate a unique ID for the event
+      id: null,
       name: _nameController.text,
       description: _descriptionController.text,
       date: _selectedDate,
-      location: 'Specify location here', // You might want to add a location field
+      location: _locationController.text,
       category: _categoryController.text,
-      userId: 'Specify user ID here', // Manage user context
+      userId: 'user001', // Replace with actual user context
       status: _status,
     );
 
@@ -41,14 +44,14 @@ class _AddEventPageState extends State<AddEventPage> {
   }
 
   Future<void> _pickDate() async {
-    final DateTime? pickedDate = await showDatePicker(
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
 
-    if (pickedDate != null && pickedDate != _selectedDate) {
+    if (pickedDate != null) {
       setState(() {
         _selectedDate = pickedDate;
       });
@@ -61,51 +64,59 @@ class _AddEventPageState extends State<AddEventPage> {
       appBar: AppBar(title: Text('Add Event')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(labelText: 'Event Name'),
-            ),
-            TextField(
-              controller: _descriptionController,
-              decoration: InputDecoration(labelText: 'Event Description'),
-            ),
-            TextField(
-              controller: _categoryController,
-              decoration: InputDecoration(labelText: 'Category'),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text('Date: ${_selectedDate.toLocal().toShortString()}'),
-                ),
-                IconButton(
-                  icon: Icon(Icons.calendar_today),
-                  onPressed: _pickDate,
-                ),
-              ],
-            ),
-            DropdownButtonFormField<String>(
-              value: _status,
-              items: ['Upcoming', 'Current', 'Past'].map((String value) {
-                return DropdownMenuItem(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (value) {
-                setState(() {
-                  _status = value!;
-                });
-              },
-              decoration: InputDecoration(labelText: 'Status'),
-            ),
-            ElevatedButton(
-              onPressed: _saveEvent,
-              child: Text('Save Event'),
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: _nameController,
+                decoration: InputDecoration(labelText: 'Event Name *'),
+              ),
+              TextField(
+                controller: _descriptionController,
+                decoration: InputDecoration(labelText: 'Description'),
+                maxLines: 3,
+              ),
+              TextField(
+                controller: _categoryController,
+                decoration: InputDecoration(labelText: 'Category *'),
+              ),
+              TextField(
+                controller: _locationController,
+                decoration: InputDecoration(labelText: 'Location *'),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Date: ${_selectedDate.toLocal().toShortString()}'),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.calendar_today),
+                    onPressed: _pickDate,
+                  ),
+                ],
+              ),
+              DropdownButtonFormField<String>(
+                value: _status,
+                items: ['Upcoming', 'Current', 'Past'].map((value) {
+                  return DropdownMenuItem(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _status = value!;
+                  });
+                },
+                decoration: InputDecoration(labelText: 'Status'),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _saveEvent,
+                child: Text('Save Event'),
+              ),
+            ],
+          ),
         ),
       ),
     );

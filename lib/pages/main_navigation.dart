@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'event_list.dart';
+import 'event_list_page.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
 

@@ -12,9 +12,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Friend> friends = [
-    Friend(name: 'Alice', profileImage: 'assets/alice.png', upcomingEvents: 1),
-    Friend(name: 'Bob', profileImage: 'assets/bob.png', upcomingEvents: 2),
-    Friend(name: 'Charlie', profileImage: 'assets/charlie.png', upcomingEvents: 0),
+    Friend(name: 'Alice', profileImage: 'images/alice.png', upcomingEvents: 1),
+    Friend(name: 'Bob', profileImage: 'images/bob.png', upcomingEvents: 2),
+    Friend(name: 'Charlie', profileImage: 'images/charlie.png', upcomingEvents: 0),
   ];
 
   String searchQuery = '';

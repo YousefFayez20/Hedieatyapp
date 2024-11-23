@@ -1,56 +1,56 @@
+// lib/models/gift.dart
 class Gift {
-  String name;
-  String description;
-  String category;
-  double price;
-  String status;  // "Available" or "Pledged"
-  bool isPledged;
-  String? imageUrl;
+  final int? id;
+  final String name;
+  final String description;
+  final String category;
+  final double price;
+  final String status; // e.g., "Available" or "Pledged"
+  final int? eventId; // Allow nullable for adding new gifts without an event
+  final String? imageUrl; // Optional image URL
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Gift({
+    this.id,
     required this.name,
     required this.description,
     required this.category,
     required this.price,
     required this.status,
-    this.isPledged = false,
+    this.eventId,
     this.imageUrl,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  // Adding a named constructor for an empty gift
-  Gift.empty()
-      : name = '',
-        description = '',
-        category = '',
-        price = 0.0,
-        status = 'Available',
-        isPledged = false,
-        imageUrl = null;
-}
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'category': category,
+      'price': price,
+      'status': status,
+      'event_id': eventId,
+      'image_url': imageUrl,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
 
-class PledgedGift extends Gift {
-  DateTime dueDate;
-  String friendName;
-
-  PledgedGift({
-    required String name,
-    required String description,
-    required String category,
-    required double price,
-    required String status,
-    bool isPledged = true,
-    String? imageUrl,
-    required this.dueDate,
-    required this.friendName,
-  }) : super(
-    name: name,
-    description: description,
-    category: category,
-    price: price,
-    status: status,
-    isPledged: isPledged,
-    imageUrl: imageUrl,
-  );
-
-// Add methods specific to pledged gifts if necessary, such as extending or modifying the pledge
+  factory Gift.fromMap(Map<String, dynamic> map) {
+    return Gift(
+      id: map['id'],
+      name: map['name'],
+      description: map['description'],
+      category: map['category'],
+      price: map['price'],
+      status: map['status'],
+      eventId: map['event_id'],
+      imageUrl: map['image_url'],
+      createdAt: DateTime.parse(map['created_at']),
+      updatedAt: DateTime.parse(map['updated_at']),
+    );
+  }
 }

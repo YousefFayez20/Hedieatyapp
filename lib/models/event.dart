@@ -1,7 +1,5 @@
-import 'gift.dart'; // Ensure this import is correct
-
 class Event {
-  final String id;
+  final int? id;
   final String name;
   final DateTime date;
   final String location;
@@ -9,10 +7,9 @@ class Event {
   final String userId;
   final String category;
   final String status;
-  List<Gift> gifts; // Add this to hold gifts for each event
 
   Event({
-    required this.id,
+    this.id,
     required this.name,
     required this.date,
     required this.location,
@@ -20,6 +17,31 @@ class Event {
     required this.userId,
     required this.category,
     required this.status,
-    this.gifts = const [], // Default to an empty list of gifts
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'date': date.toIso8601String(),
+      'location': location,
+      'description': description,
+      'user_id': userId,
+      'category': category,
+      'status': status,
+    };
+  }
+
+  factory Event.fromMap(Map<String, dynamic> map) {
+    return Event(
+      id: map['id'],
+      name: map['name'],
+      date: DateTime.parse(map['date']),
+      location: map['location'] ?? '',
+      description: map['description'] ?? '',
+      userId: map['user_id'] ?? '',
+      category: map['category'] ?? '',
+      status: map['status'] ?? '',
+    );
+  }
 }

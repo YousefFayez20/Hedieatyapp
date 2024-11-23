@@ -1,84 +1,209 @@
 import 'package:flutter/material.dart';
-import '../models/gift.dart';  // Ensure the path matches your project structure
-import '../models/event.dart';
+import '../utils/database_helper.dart';
+import '../models/gift.dart';
+import 'gift_edit_page.dart';
 import 'gift_details_page.dart';
 
 class GiftListPage extends StatefulWidget {
-  final Event event;
+  final int eventId;
+  final String eventName;
 
-  GiftListPage({required this.event});
+  const GiftListPage({
+    Key? key,
+    required this.eventId,
+    required this.eventName,
+  }) : super(key: key);
 
   @override
   _GiftListPageState createState() => _GiftListPageState();
 }
 
 class _GiftListPageState extends State<GiftListPage> {
-  List<Gift> gifts = [];
+  final DatabaseHelper _databaseHelper = DatabaseHelper();
+  List<Gift> _gifts = [];
+  String _sortColumn = 'name';
+  bool _isAscending = true;
 
   @override
   void initState() {
     super.initState();
-    gifts = fetchGiftsForEvent(widget.event);
+    _fetchGifts();
   }
 
-  List<Gift> fetchGiftsForEvent(Event event) {
-    return [
-      Gift(name: 'Bluetooth Speaker', description: 'High quality sound', category: 'Electronics', price: 150.0, status: 'Available', isPledged: false),
-      Gift(name: 'Leather Wallet', description: 'Genuine leather wallet', category: 'Accessories', price: 49.99, status: 'Pledged', isPledged: true),
-    ];
+  Future<void> _fetchGifts() async {
+    final gifts = await _databaseHelper.fetchGiftsByEventId(widget.eventId);
+    setState(() {
+      _gifts = gifts;
+    });
+  }
+
+  void _sortGifts(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        _isAscending = !_isAscending;
+      } else {
+        _sortColumn = column;
+        _isAscending = true;
+      }
+
+      _gifts.sort((a, b) {
+        final compare = _compareColumn(a, b, column);
+        return _isAscending ? compare : -compare;
+      });
+    });
+  }
+
+  int _compareColumn(Gift a, Gift b, String column) {
+    switch (column) {
+      case 'category':
+        return a.category.compareTo(b.category);
+      case 'status':
+        return a.status.compareTo(b.status);
+      case 'name':
+      default:
+        return a.name.compareTo(b.name);
+    }
+  }
+
+  Future<void> _addOrEditGift(Gift? gift) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GiftEditPage(
+          gift: gift,
+          eventId: widget.eventId,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _fetchGifts();
+    }
+  }
+
+  Future<void> _deleteGift(int id) async {
+    await _databaseHelper.deleteGift(id);
+    _fetchGifts();
+  }
+
+  void _confirmDelete(int id) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Gift'),
+        content: const Text('Are you sure you want to delete this gift?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteGift(id);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGiftTile(Gift gift) {
+    final isPledged = gift.status == 'Pledged';
+
+    return ListTile(
+      title: Text(
+        gift.name,
+        style: TextStyle(
+          color: isPledged ? Colors.grey : Colors.black,
+        ),
+      ),
+      subtitle: Text(
+        'Category: ${gift.category} | Price: \$${gift.price}',
+        style: TextStyle(
+          color: isPledged ? Colors.grey : Colors.black,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!isPledged) // Allow editing only if not pledged
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _addOrEditGift(gift),
+            ),
+          if (!isPledged) // Allow deletion only if not pledged
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () => _confirmDelete(gift.id!),
+            ),
+        ],
+      ),
+      tileColor: isPledged ? Colors.green[100] : null, // Highlight pledged gifts
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => GiftDetailsPage(gift: gift),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Gifts for ${widget.event.name}'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: Gift.empty())),
+        title: Text('Gifts for ${widget.eventName}'),
+      ),
+      body: Column(
+        children: [
+          _buildSortOptions(),
+          Expanded(
+            child: _gifts.isEmpty
+                ? const Center(child: Text('No gifts available for this event.'))
+                : ListView.builder(
+              itemCount: _gifts.length,
+              itemBuilder: (context, index) {
+                final gift = _gifts[index];
+                return _buildGiftTile(gift);
+              },
             ),
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: gifts.length,
-        itemBuilder: (context, index) {
-          final gift = gifts[index];
-          return Card(
-            margin: const EdgeInsets.all(8),
-            child: ListTile(
-              leading: Icon(Icons.card_giftcard, color: Theme.of(context).primaryColor),
-              title: Text(gift.name, style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('${gift.category} - \$${gift.price.toStringAsFixed(2)}'),
-              trailing: IconButton(
-                icon: Icon(gift.isPledged ? Icons.check : Icons.edit),
-                color: gift.isPledged ? Colors.green : Colors.blue,
-                onPressed: () {
-                  if (!gift.isPledged) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: gift)),
-                    );
-                  }
-                },
-              ),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => GiftDetailsPage(gift: gift)),
-              ),
-            ),
-          );
-        },
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _addOrEditGift(null),
+        tooltip: 'Add Gift',
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  void _deleteGift(int index) {
-    setState(() {
-      gifts.removeAt(index);
-    });
+  Widget _buildSortOptions() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      color: Colors.grey[200],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildSortButton('name', 'Name'),
+          _buildSortButton('category', 'Category'),
+          _buildSortButton('status', 'Status'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortButton(String column, String label) {
+    return TextButton.icon(
+      onPressed: () => _sortGifts(column),
+      icon: Icon(
+        _sortColumn == column
+            ? (_isAscending ? Icons.arrow_upward : Icons.arrow_downward)
+            : Icons.swap_vert,
+      ),
+      label: Text(label),
+    );
   }
 }
