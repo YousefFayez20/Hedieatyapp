@@ -4,6 +4,10 @@ import 'home_page.dart';
 import 'profile_page.dart';
 
 class MainNavigation extends StatefulWidget {
+  final int userId; // Add a required userId parameter
+
+  const MainNavigation({Key? key, required this.userId}) : super(key: key);
+
   @override
   _MainNavigationState createState() => _MainNavigationState();
 }
@@ -11,12 +15,18 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
-    HomePage(),         // Home Page
-    EventListPage(),    // Event List Page
-    UserProfilePage(),  // Profile Page
-    Placeholder(),      // Replace GiftListPage with a placeholder or alternate functionality
-  ];
+  late final List<Widget> _pages; // Declare pages dynamically based on userId
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomePage(userId: widget.userId),         // Pass userId to Home Page
+      EventListPage(userId: widget.userId),    // Pass userId to Event List Page
+      UserProfilePage(userId: widget.userId),  // Pass userId to Profile Page
+      Placeholder(),                           // Replace GiftListPage or add functionality
+    ];
+  }
 
   void _onTabTapped(int index) {
     setState(() {

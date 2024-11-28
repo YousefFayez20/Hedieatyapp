@@ -33,6 +33,7 @@ dependencies:
   sqflite:
   path_provider:
   path:
+  intl:
 
 
 

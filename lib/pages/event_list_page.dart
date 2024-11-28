@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
 import '../models/event.dart';
+import '../models/friend.dart';
 import 'event_edit_page.dart';
+import 'add_event_page.dart';
 import 'gift_list_page.dart';
 
 class EventListPage extends StatefulWidget {
+  final int userId; // Accept userId to filter events for the specific user
+
+  const EventListPage({Key? key, required this.userId}) : super(key: key);
+
   @override
   _EventListPageState createState() => _EventListPageState();
 }
@@ -12,66 +18,68 @@ class EventListPage extends StatefulWidget {
 class _EventListPageState extends State<EventListPage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   List<Event> _events = [];
+  List<Friend> _friends = []; // Store friends for the user
   String _sortColumn = 'name';
   bool _isAscending = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchEvents();
+    _fetchData();
   }
 
-  Future<void> _fetchEvents() async {
-    final events = await _databaseHelper.fetchAllEvents();
+  Future<void> _fetchData() async {
+    final events = await _databaseHelper.fetchEventsByUserId(widget.userId);
+    final friends = await _databaseHelper.fetchAllFriends(widget.userId);
+
     setState(() {
-      _events = events;
+      _events = events.where((event) => event.userId == widget.userId).toList();
+      _friends = friends;
     });
   }
 
-  void _sortEvents(String column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _isAscending = !_isAscending;
-      } else {
-        _sortColumn = column;
-        _isAscending = true;
-      }
-
-      _events.sort((a, b) {
-        final compare = _compareColumn(a, b, column);
-        return _isAscending ? compare : -compare;
-      });
-    });
-  }
-
-  int _compareColumn(Event a, Event b, String column) {
-    switch (column) {
-      case 'category':
-        return a.category.compareTo(b.category);
-      case 'status':
-        return a.status.compareTo(b.status);
-      case 'name':
-      default:
-        return a.name.compareTo(b.name);
-    }
-  }
 
   Future<void> _addOrEditEvent(Event? event) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EventEditPage(event: event),
-      ),
-    );
+    if (event == null) {
+      // Navigate to AddEventPage
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddEventPage(
+            onAdd: (newEvent) async {
+              await _databaseHelper.insertEvent(newEvent);
+              _fetchData();
+            },
+            userId: widget.userId,
+            friends: _friends, // Pass the list of friends
+          ),
+        ),
+      );
 
-    if (result == true) {
-      _fetchEvents();
+      if (result == true) {
+        _fetchData();
+      }
+    } else {
+      // Navigate to EventEditPage
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventEditPage(
+            event: event,
+            userId: widget.userId,
+          ),
+        ),
+      );
+
+      if (result == true) {
+        _fetchData();
+      }
     }
   }
 
   Future<void> _deleteEvent(int id) async {
     await _databaseHelper.deleteEvent(id);
-    _fetchEvents();
+    _fetchData();
   }
 
   void _confirmDelete(int id) {
@@ -105,80 +113,49 @@ class _EventListPageState extends State<EventListPage> {
       ),
       body: _events.isEmpty
           ? const Center(child: Text('No events available.'))
-          : Column(
-        children: [
-          _buildSortOptions(),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _events.length,
-              itemBuilder: (context, index) {
-                final event = _events[index];
-                return ListTile(
-                  title: Text(event.name),
-                  subtitle: Text(
-                      '${event.category} | ${event.status} | ${event.date.toLocal()}'),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GiftListPage(
-                          eventId: event.id!,
-                          eventName: event.name,
-                        ),
-                      ),
-                    );
-                  },
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _addOrEditEvent(event),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () => _confirmDelete(event.id!),
-                      ),
-                    ],
+          : ListView.builder(
+        itemCount: _events.length,
+        itemBuilder: (context, index) {
+          final event = _events[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+            child: ListTile(
+              title: Text(event.name),
+              subtitle: Text(
+                  '${event.category} | ${event.status} | ${event.date.toLocal().toString().split(' ')[0]}'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => GiftListPage(
+                      eventId: event.id!,
+                      eventName: event.name,
+                    ),
                   ),
                 );
               },
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _addOrEditEvent(event),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _confirmDelete(event.id!),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEditEvent(null),
         tooltip: 'Add Event',
         child: const Icon(Icons.add),
       ),
-    );
-  }
-
-  Widget _buildSortOptions() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      color: Colors.grey[200],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSortButton('name', 'Name'),
-          _buildSortButton('category', 'Category'),
-          _buildSortButton('status', 'Status'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSortButton(String column, String label) {
-    return TextButton.icon(
-      onPressed: () => _sortEvents(column),
-      icon: Icon(
-        _sortColumn == column
-            ? (_isAscending ? Icons.arrow_upward : Icons.arrow_downward)
-            : Icons.swap_vert,
-      ),
-      label: Text(label),
     );
   }
 }

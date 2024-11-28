@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
 import '../models/gift.dart';
 import 'gift_edit_page.dart';
-import 'gift_details_page.dart';
 
 class GiftListPage extends StatefulWidget {
   final int eventId;
@@ -71,13 +70,13 @@ class _GiftListPageState extends State<GiftListPage> {
       MaterialPageRoute(
         builder: (context) => GiftEditPage(
           gift: gift,
-          eventId: widget.eventId,
+          eventId: widget.eventId, // Pass the eventId for gift association
         ),
       ),
     );
 
     if (result == true) {
-      _fetchGifts();
+      _fetchGifts(); // Refresh the gift list after adding or editing
     }
   }
 
@@ -128,25 +127,17 @@ class _GiftListPageState extends State<GiftListPage> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!isPledged) // Allow editing only if not pledged
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _addOrEditGift(gift),
-            ),
-          if (!isPledged) // Allow deletion only if not pledged
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () => _confirmDelete(gift.id!),
-            ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () => _addOrEditGift(gift), // Navigate to GiftEditPage
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () => _confirmDelete(gift.id!),
+          ),
         ],
       ),
-      tileColor: isPledged ? Colors.green[100] : null, // Highlight pledged gifts
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GiftDetailsPage(gift: gift),
-        ),
-      ),
+      onTap: () => _addOrEditGift(gift), // Navigate to GiftEditPage
     );
   }
 

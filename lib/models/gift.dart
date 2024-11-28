@@ -1,13 +1,12 @@
-// lib/models/gift.dart
 class Gift {
   final int? id;
   final String name;
   final String description;
   final String category;
   final double price;
-  final String status; // e.g., "Available" or "Pledged"
-  final int? eventId; // Allow nullable for adding new gifts without an event
-  final String? imageUrl; // Optional image URL
+  final String status;
+  final int? eventId; // Make eventId nullable
+  final String? imageUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -18,7 +17,7 @@ class Gift {
     required this.category,
     required this.price,
     required this.status,
-    this.eventId,
+    this.eventId, // Nullable
     this.imageUrl,
     required this.createdAt,
     required this.updatedAt,

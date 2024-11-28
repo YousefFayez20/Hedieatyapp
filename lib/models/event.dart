@@ -4,7 +4,8 @@ class Event {
   final DateTime date;
   final String location;
   final String description;
-  final String userId;
+  final int userId;
+  final int? friendId; // Nullable for personal events
   final String category;
   final String status;
 
@@ -15,6 +16,7 @@ class Event {
     required this.location,
     required this.description,
     required this.userId,
+    this.friendId, // Nullable for personal events
     required this.category,
     required this.status,
   });
@@ -27,6 +29,7 @@ class Event {
       'location': location,
       'description': description,
       'user_id': userId,
+      'friend_id': friendId, // Include friendId in database mapping
       'category': category,
       'status': status,
     };
@@ -37,11 +40,12 @@ class Event {
       id: map['id'],
       name: map['name'],
       date: DateTime.parse(map['date']),
-      location: map['location'] ?? '',
-      description: map['description'] ?? '',
-      userId: map['user_id'] ?? '',
-      category: map['category'] ?? '',
-      status: map['status'] ?? '',
+      location: map['location'],
+      description: map['description'],
+      userId: map['user_id'],
+      friendId: map['friend_id'], // Parse friendId (nullable)
+      category: map['category'],
+      status: map['status'],
     );
   }
 }

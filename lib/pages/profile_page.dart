@@ -1,56 +1,105 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-
-import 'my_pledged_gifts_page.dart';
+import '../utils/database_helper.dart';
+import '../models/user.dart';
+import 'gift_list_page.dart';  // Page for showing user's created event's gifts.
+import 'my_pledged_gifts_page.dart';  // Page for showing the pledged gifts.
 
 class UserProfilePage extends StatefulWidget {
+  final int userId; // Accept userId to fetch and update profile data
+
+  const UserProfilePage({Key? key, required this.userId}) : super(key: key);
+
   @override
   _UserProfilePageState createState() => _UserProfilePageState();
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
+  final DatabaseHelper _databaseHelper = DatabaseHelper();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  bool notificationsEnabled = true;
-  File? _profileImage; // Store the selected image
-  final ImagePicker _picker = ImagePicker();
+  bool notificationsEnabled = true; // Placeholder for notification setting
+  User? _user; // Store the fetched user object
+  List<Map<String, dynamic>> _userEvents = []; // To store personal events only
 
-  List<Map<String, dynamic>> createdEvents = [
-    {
-      'name': 'Birthday Party',
-      'date': DateTime(2024, 11, 15),
-      'gifts': [
-        {'name': 'Smartwatch', 'isPledged': true},
-        {'name': 'Gift Card', 'isPledged': false},
-      ],
-    },
-    {
-      'name': 'Conference',
-      'date': DateTime(2024, 11, 5),
-      'gifts': [
-        {'name': 'Notebook', 'isPledged': true},
-      ],
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+    _loadUserEvents(); // Load user's personal events
+  }
 
+  // Load user profile information
+  Future<void> _loadUserProfile() async {
+    final user = await _databaseHelper.getUserById(widget.userId);
+    if (user != null) {
+      setState(() {
+        _user = user;
+        nameController.text = user.name;
+        emailController.text = user.email;
+        notificationsEnabled = user.preferences?.contains('notifications') ?? true;
+      });
+    }
+  }
+
+  // Load personal events created by the user (events where friend_id is null)
+  Future<void> _loadUserEvents() async {
+    final events = await _databaseHelper.fetchPersonalEvents(widget.userId);
+
+    // Convert the List<Event> into a List<Map<String, dynamic>> for display
+    setState(() {
+      _userEvents = events.map((event) {
+        return {
+          'id': event.id,
+          'name': event.name,
+          'date': event.date,
+          'location': event.location,
+          'description': event.description,
+          // Add other necessary fields here
+        };
+      }).toList();
+    });
+  }
+
+  // Update the user profile information
+  Future<void> _updateUserProfile() async {
+    if (_user != null) {
+      final updatedUser = User(
+        id: _user?.id,
+        name: nameController.text,
+        email: emailController.text,
+        password: _user?.password ?? "", // Retain old password if unchanged
+        preferences: notificationsEnabled ? 'notifications' : '',
+      );
+      await _databaseHelper.updateUser(updatedUser);
+      setState(() {
+        _user = updatedUser;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+    }
+  }
+
+  // Show the edit profile dialog to update name and email
   void _showEditProfileDialog() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Edit Profile'),
+          title: const Text('Edit Profile'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: InputDecoration(labelText: 'Name'),
+                  decoration: const InputDecoration(labelText: 'Name'),
                 ),
                 TextField(
                   controller: emailController,
-                  decoration: InputDecoration(labelText: 'Email'),
+                  decoration: const InputDecoration(labelText: 'Email'),
                 ),
               ],
             ),
@@ -58,15 +107,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () {
-                // Save changes to profile
+                _updateUserProfile();
                 Navigator.of(context).pop();
-                // You may want to save the updated information here
               },
-              child: Text('Save'),
+              child: const Text('Save'),
             ),
           ],
         );
@@ -74,125 +122,102 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  void _toggleNotifications(bool? value) {
-    setState(() {
-      notificationsEnabled = value ?? true;
-    });
-  }
-
-  void _navigateToPledgedGifts() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => MyPledgedGiftsPage()),
+  // Build event list tile to show personal events with associated gifts
+  Widget _buildEventTile(Map<String, dynamic> event) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: ListTile(
+        title: Text(event['name']),
+        subtitle: Text('Date: ${event['date']}'),
+        trailing: IconButton(
+          icon: const Icon(Icons.arrow_forward),
+          onPressed: () {
+            // Navigate to the gift list page for this event
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => GiftListPage(
+                  eventId: event['id'], // Pass eventId to load gifts for the event
+                  eventName: event['name'],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
     );
-  }
-
-  Future<void> _pickProfileImage() async {
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('User Profile'),
+        title: const Text('User Profile'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Image Container
-            Center(
-              child: GestureDetector(
-                onTap: _pickProfileImage,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundImage: _profileImage != null
-                      ? FileImage(_profileImage!)
-                      : AssetImage('assets/default_profile.png') as ImageProvider, // Placeholder image
-                  child: _profileImage == null
-                      ? Icon(Icons.camera_alt, size: 30, color: Colors.white) // Camera icon if no image
-                      : null,
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-
-            // Profile Information
-            Text('Profile Information', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(height: 10),
+            // Profile Information (Without profile image)
+            const Text('Profile Information', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
             ListTile(
               title: Text('Name: ${nameController.text.isEmpty ? "Not Set" : nameController.text}'),
               trailing: IconButton(
-                icon: Icon(Icons.edit),
+                icon: const Icon(Icons.edit),
                 onPressed: _showEditProfileDialog,
               ),
             ),
             ListTile(
               title: Text('Email: ${emailController.text.isEmpty ? "Not Set" : emailController.text}'),
               trailing: IconButton(
-                icon: Icon(Icons.edit),
+                icon: const Icon(Icons.edit),
                 onPressed: _showEditProfileDialog,
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Notification Settings
-            Text('Notification Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Notification Settings', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             SwitchListTile(
-              title: Text('Enable Notifications'),
+              title: const Text('Enable Notifications'),
               value: notificationsEnabled,
-              onChanged: _toggleNotifications,
+              onChanged: (value) {
+                setState(() {
+                  notificationsEnabled = value;
+                });
+                _updateUserProfile();
+              },
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-            // Created Events
-            Text('Created Events', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            // User's Created Personal Events (Only personal events)
+            const Text('Your Created Personal Events', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
-                itemCount: createdEvents.length,
+                itemCount: _userEvents.length,
                 itemBuilder: (context, index) {
-                  final event = createdEvents[index];
-                  return ListTile(
-                    title: Text(event['name']),
-                    subtitle: Text('Date: ${event['date'].toLocal()}'),
-                    onTap: () {
-                      // Navigate to the event details page (implement this if needed)
-                    },
-                  );
+                  final event = _userEvents[index];
+                  return _buildEventTile(event);
                 },
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 20),
 
             // Link to Pledged Gifts Page
             ElevatedButton(
-              onPressed: _navigateToPledgedGifts,
-              child: Text('View My Pledged Gifts'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MyPledgedGiftsPage(userId: widget.userId)),
+                );
+              },
+              child: const Text('View My Pledged Gifts'),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// Placeholder for PledgedGiftsPage
-class PledgedGiftsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('My Pledged Gifts'),
-      ),
-      body: Center(
-        child: Text('List of pledged gifts will be shown here.'),
       ),
     );
   }
