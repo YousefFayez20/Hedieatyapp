@@ -43,6 +43,10 @@ dependencies:
   awesome_dialog: ^3.2.1
   url_launcher: ^6.1.7
   image_picker:
+  firebase_core: ^3.8.0
+  firebase_database:
+  firebase_auth:
+  cloud_firestore:
 
 dev_dependencies:
   flutter_test:

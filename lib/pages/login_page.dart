@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
-import 'main_navigation.dart';
+import 'main_navigation.dart'; // Assuming this is the main navigation page
 import 'sign_up_page.dart'; // Import your sign-up page here
 import '/utils/database_helper.dart'; // Import your DatabaseHelper here
+import '/models/user.dart'; // Import your User model
 
 class LoginPage extends StatefulWidget {
   @override
@@ -12,6 +14,7 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final DatabaseHelper _databaseHelper = DatabaseHelper();
 
   @override
@@ -86,20 +89,28 @@ class _LoginPageState extends State<LoginPage> {
                     ElevatedButton(
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
-                          String email = emailController.text;
-                          String password = passwordController.text;
-
-                          // Validate user login and get the userId
-                          var userId = await _databaseHelper.validateUserAndGetId(email, password);
-
-                          if (userId != null) {
-                            // Navigate to Main Navigation with the userId if login is successful
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(builder: (context) => MainNavigation(userId: userId)),
+                          try {
+                            // Sign in with Firebase Authentication
+                            firebase_auth.UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+                              email: emailController.text,
+                              password: passwordController.text,
                             );
-                          } else {
-                            // Show error if user not found
+
+                            // Fetch the local user using the email
+                            User? localUser = await _databaseHelper.getUserByEmail(emailController.text);
+
+                            // Navigate to the MainNavigation page with local userId
+                            if (localUser != null) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(builder: (context) => MainNavigation(userId: localUser.id!)),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('User not found in local database')),
+                              );
+                            }
+                          } on firebase_auth.FirebaseAuthException catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Invalid email or password')),
                             );

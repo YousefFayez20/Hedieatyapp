@@ -1,6 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;  // Aliasing Firebase's User class
 import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
-import '../models/user.dart';
+import '../models/user.dart';  // Import your custom User model
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -15,6 +16,44 @@ class _SignUpPageState extends State<SignUpPage> {
   final _formKey = GlobalKey<FormState>();
 
   final DatabaseHelper _databaseHelper = DatabaseHelper(); // DatabaseHelper instance
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance; // FirebaseAuth instance
+
+  // This method handles the form submission and user creation
+  Future<void> _signUp() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // Create user with Firebase Authentication
+        firebase_auth.UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+          email: emailController.text,
+          password: passwordController.text,
+        );
+
+        // Create User object for local database (Custom User model)
+        final newUser = User(
+          name: nameController.text,
+          email: emailController.text,
+          password: passwordController.text,
+          preferences: null, // Add preferences if needed
+        );
+
+        // Insert the user into the local SQLite database
+        await _databaseHelper.insertUser(newUser);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Account created successfully!')),
+        );
+
+        // Navigate back to the login page
+        Navigator.pop(context);
+      } on firebase_auth.FirebaseAuthException catch (e) {
+        print("Error: ${e.message}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error creating account: ${e.message}')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +69,13 @@ class _SignUpPageState extends State<SignUpPage> {
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
             ),
+            SizedBox(height: 20),
             Image.asset(
               'images/shap.png',
               width: 250,
               height: 250,
             ),
+            SizedBox(height: 20),
             Form(
               key: _formKey,
               child: Column(
@@ -121,32 +162,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Sign Up Button
                   ElevatedButton(
-                    onPressed: () async {
-                      if (_formKey.currentState!.validate()) {
-                        // Create a new User object and insert it into the database
-                        final newUser = User(
-                          name: nameController.text,
-                          email: emailController.text,
-                          password: passwordController.text,
-                          preferences: null, // Add preferences if needed
-                        );
-
-                        try {
-                          print("Attempting to insert user: ${newUser.toMap()}");
-                          await _databaseHelper.insertUser(newUser); // Insert user into the database
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Account created successfully!')),
-                          );
-                          Navigator.pop(context); // Navigate back to LoginPage
-                        } catch (e) {
-                          print("Error inserting user: $e");
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error creating account: $e')),
-                          );
-                        }
-                      }
-                    },
+                    onPressed: _signUp, // Call the _signUp method when button is pressed
                     child: Text('Sign Up'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 15, horizontal: 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
                   ),
                   SizedBox(height: 10),
 
@@ -168,7 +191,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   void dispose() {
-    // Dispose controllers to free resources
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
