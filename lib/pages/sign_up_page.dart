@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;  // Aliasing
 import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
 import '../models/user.dart';  // Import your custom User model
+import '../utils/firestore_service.dart';  // Import FirestoreService
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -17,6 +18,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   final DatabaseHelper _databaseHelper = DatabaseHelper(); // DatabaseHelper instance
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance; // FirebaseAuth instance
+  final FirestoreService _firestoreService = FirestoreService(); // FirestoreService instance
 
   // This method handles the form submission and user creation
   Future<void> _signUp() async {
@@ -32,12 +34,15 @@ class _SignUpPageState extends State<SignUpPage> {
         final newUser = User(
           name: nameController.text,
           email: emailController.text,
-          password: passwordController.text,
+          password: passwordController.text,  // Password is required here
           preferences: null, // Add preferences if needed
         );
 
         // Insert the user into the local SQLite database
         await _databaseHelper.insertUser(newUser);
+
+        // Add the user to Firestore
+        await _firestoreService.addUserToFirestore(newUser);
 
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
