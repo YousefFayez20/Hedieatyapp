@@ -52,6 +52,7 @@ class DatabaseHelper {
         profile_image TEXT,
         upcoming_events INTEGER DEFAULT 0,
         user_id INTEGER,
+         firebase_id TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
       )
     ''');
@@ -199,9 +200,12 @@ class DatabaseHelper {
   // ------------------- Friend-Related Functions -------------------
   Future<int> insertFriend(Friend friend) async {
     final db = await database;
-    print("Inserting friend: ${friend.toMap()}");
+    print("Inserting friend with Firebase ID: ${friend.firebaseId}");
+
+    // Insert friend into the local SQLite database
     return await db.insert('friends', friend.toMap());
   }
+
   Future<Friend?> fetchFriendById(int friendId) async {
     final db = await database;
     final results = await db.query('friends', where: 'id = ?', whereArgs: [friendId]);
@@ -345,7 +349,6 @@ class DatabaseHelper {
       whereArgs: [gift.id],
     );
   }
-
   Future<List<Map<String, dynamic>>> fetchGiftsByFriendGroupedByEvent(int friendId) async {
     final db = await database;
 
@@ -368,9 +371,7 @@ class DatabaseHelper {
     WHERE events.friend_id = ? -- Filter by friend_id
     ORDER BY events.date ASC
   ''', [friendId]);
-
     print("Raw query results: $results");
-
     // Group results by event
     Map<int, Map<String, dynamic>> groupedEvents = {};
     for (var row in results) {
@@ -384,7 +385,6 @@ class DatabaseHelper {
           'gifts': []
         };
       }
-
       // Add gift details if available
       if (row['gift_id'] != null) {
         groupedEvents[eventId]!['gifts'].add({
@@ -396,7 +396,6 @@ class DatabaseHelper {
         });
       }
     }
-
     final groupedResults = groupedEvents.values.toList();
     print("Grouped results: $groupedResults");
     return groupedResults;
@@ -414,8 +413,6 @@ class DatabaseHelper {
 
     return results.map((map) => Event.fromMap(map)).toList();
   }
-
-
   Future<List<Map<String, dynamic>>> fetchPledgedGifts(int userId) async {
     final db = await database;
     final results = await db.rawQuery(''' 
@@ -432,11 +429,9 @@ class DatabaseHelper {
   ''', [userId]);
     return results;
   }
-
 // Inside your DatabaseHelper class
   Future<int> updateGiftStatus(int giftId, String status) async {
     final db = await database;
-
     // Update the status of the gift
     final result = await db.update(
       'gifts',
@@ -444,45 +439,37 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [giftId],
     );
-
     print("Gift status updated: $status for gift ID: $giftId");
     return result;
   }
   Future<List<Event>> fetchEventsByFriendId(int friendId) async {
     final db = await database;
-
     final results = await db.query(
       'events',
       where: 'friend_id = ?',
       whereArgs: [friendId],
     );
-
     return results.map((map) => Event.fromMap(map)).toList();
   }
   Future<int> fetchUpcomingEventCountByFriendId(int friendId) async {
     final db = await database;
-
     // Get today's date to filter events that are upcoming
     final today = DateTime.now();
     final formattedToday = DateFormat("yyyy-MM-dd").format(today);
-
     final results = await db.query(
       'events',
       where: 'friend_id = ? AND date > ?',
       whereArgs: [friendId, formattedToday],  // Only fetch upcoming events
     );
-
     return results.length; // Return the count of upcoming events
   }
   Future<int> fetchTotalEventCountByFriendId(int friendId) async {
     final db = await database;
-
     final result = await db.query(
       'events',
       where: 'friend_id = ?',
       whereArgs: [friendId],
     );
-
     return result.length; // Return the total count of events for this friend
   }
 }

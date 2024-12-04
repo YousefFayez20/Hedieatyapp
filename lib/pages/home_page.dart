@@ -5,6 +5,7 @@ import 'friend_gift_list_page.dart';
 import 'add_event_page.dart';
 import '../models/event.dart';
 import '../utils/database_helper.dart';
+import '../utils//firestore_service.dart';  // <-- Import FirestoreService
 
 class HomePage extends StatefulWidget {
   final int userId;
@@ -17,6 +18,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final FirestoreService _firestoreService = FirestoreService(); // Instance of FirestoreService
   List<Friend> friends = [];
   String searchQuery = '';
   String sortOption = 'Total Events';
@@ -101,7 +103,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Friends & Events'),
         backgroundColor: Colors.teal,
         actions: [
-          PopupMenuButton<String>(
+          PopupMenuButton<String>( // Sorting menu
             onSelected: (value) {
               setState(() {
                 sortOption = value;
@@ -225,6 +227,9 @@ class _HomePageState extends State<HomePage> {
                 setState(() {
                   friends.add(newFriend);
                 });
+
+                // Sync the new friend with Firebase after adding to local database
+                await _firestoreService.syncFriendWithFirebase(newFriend); // <-- Sync with Firebase
                 print('Friend added: ${newFriend.toMap()}');
               },
             ),

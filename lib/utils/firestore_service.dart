@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
-import '../utils/database_helper.dart';
+import '../models/friend.dart';
+import 'database_helper.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -49,4 +50,42 @@ class FirestoreService {
       return null;
     }
   }
+  Future<void> syncFriendWithFirebase(Friend friend) async {
+    try {
+      // Reference to Firestore collection for friends
+      final userRef = FirebaseFirestore.instance.collection('users')
+          .doc(friend.userId.toString())  // Assuming userId is available
+          .collection('friends');
+
+      // Add or update friend in Firestore
+      if (friend.firebaseId == null) {
+        // Friend does not have a Firebase ID yet, create a new document
+        final docRef = await userRef.add({
+          'name': friend.name,
+          'profile_image': friend.profileImage,
+          'upcoming_events': friend.upcomingEvents,
+        });
+
+        // Update the local SQLite database with the Firebase ID
+        friend = friend.copyWith(firebaseId: docRef.id);  // Get Firebase document ID
+
+        // Update local database with Firebase ID
+        final dbHelper = DatabaseHelper();
+        await dbHelper.updateFriend(friend);  // Update SQLite record with Firebase ID
+      } else {
+        // If the friend already has a Firebase ID, update the existing document
+        await userRef.doc(friend.firebaseId).update({
+          'name': friend.name,
+          'profile_image': friend.profileImage,
+          'upcoming_events': friend.upcomingEvents,
+        });
+      }
+
+      print('Friend synced successfully with Firebase!');
+    } catch (e) {
+      print('Error syncing friend with Firebase: $e');
+    }
+  }
+
+
 }
