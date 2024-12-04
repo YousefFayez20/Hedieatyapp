@@ -25,7 +25,7 @@ class DatabaseHelper {
     print("Database path: $path");
     return openDatabase(
       path,
-      version: 9, // Incremented version for schema updates
+      version: 11, // Incremented version for schema updates
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onDowngrade: onDatabaseDowngradeDelete,
@@ -52,6 +52,7 @@ class DatabaseHelper {
         profile_image TEXT,
         upcoming_events INTEGER DEFAULT 0,
         user_id INTEGER,
+        firebase_id TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
       )
     ''');
@@ -140,6 +141,16 @@ class DatabaseHelper {
       return User.fromMap(results.first);
     }
     print("No user found with email: $email");
+    return null;
+  }
+// Inside DatabaseHelper class
+  Future<String?> getEmailByUserId(int userId) async {
+    final db = await database;
+    final results = await db.query('users', where: 'id = ?', whereArgs: [userId]);
+
+    if (results.isNotEmpty) {
+      return results.first['email'] as String?;
+    }
     return null;
   }
 
@@ -485,4 +496,24 @@ class DatabaseHelper {
 
     return result.length; // Return the total count of events for this friend
   }
+
+  Future<Friend?> getFriendByFirebaseId(String firebaseId) async {
+    final db = await database;
+    print("Fetching friend by Firebase ID: $firebaseId");
+
+    final results = await db.query(
+        'friends',
+        where: 'firebaseId = ?',
+        whereArgs: [firebaseId]
+    );
+
+    if (results.isNotEmpty) {
+      print("Friend found: ${results.first}");
+      return Friend.fromMap(results.first);
+    }
+
+    print("No friend found with Firebase ID: $firebaseId");
+    return null;
+  }
+
 }
