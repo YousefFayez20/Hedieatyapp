@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/event.dart';
 import '../models/user.dart';
 import '../models/friend.dart';
 import '../utils/database_helper.dart';
@@ -137,4 +138,92 @@ class FirestoreService {
       print('Error adding friend to Firestore: $e');
     }
   }
+  Future<void> syncEventsWithFirestore(int userId, String email) async {
+    try {
+      // Fetch events from Firestore for the user
+      var eventDocs = await _db.collection('users')
+          .doc(email)
+          .collection('events')
+          .get();
+
+      for (var doc in eventDocs.docs) {
+        var data = doc.data();
+        Event event = Event(
+          id: null, // SQLite will generate the ID
+          name: data['name'],
+          description: data['description'],
+          location: data['location'],
+          category: data['category'],
+          date: (data['date'] as Timestamp).toDate(),
+          userId: userId,
+          friendId: data['friend_id'],
+          status: data['status'],
+
+        );
+
+        // Sync event to SQLite if not already present
+        if (event.id != null) {
+          Event? localEvent = await _databaseHelper.fetchEventById(event.id!);
+          if (localEvent == null) {
+            await _databaseHelper.insertEvent(event);
+          }
+        } else {
+          print("Event ID is null");
+        }
+      }
+    } catch (e) {
+      print('Error syncing events from Firestore: $e');
+    }
+  }
+
+  // Add event to Firestore
+  Future<void> addEventToFirestore(Event event, String email) async {
+    try {
+      await _db.collection('users')
+          .doc(email)
+          .collection('events')
+          .add({
+        'name': event.name,
+        'description': event.description,
+        'location': event.location,
+        'category': event.category,
+        'date': event.date,
+        'friend_id': event.friendId,
+        'status': event.status,
+      });
+      print('Event added to Firestore');
+    } catch (e) {
+      print('Error adding event to Firestore: $e');
+    }
+  }
+  Future<List<Event>> fetchEventsFromFirestore(int userId,email) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .doc(email) // or use the user ID
+          .collection('events')
+          .get();
+
+      List<Event> events = querySnapshot.docs.map((doc) {
+        var data = doc.data();
+        return Event(
+          id: null, // SQLite will generate the ID
+          name: data['name'],
+          description: data['description'],
+          location: data['location'],
+          category: data['category'],
+          date: (data['date'] as Timestamp).toDate(),
+          userId: userId,
+          friendId: data['friend_id'],
+          status: data['status'],
+        );
+      }).toList();
+
+      return events;
+    } catch (e) {
+      print("Error fetching events: $e");
+      return [];
+    }
+  }
+
 }

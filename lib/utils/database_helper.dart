@@ -69,6 +69,7 @@ class DatabaseHelper {
         friend_id INTEGER NULL, -- Nullable for personal events
         category TEXT,
         status TEXT,
+        firebase_id TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id),
         FOREIGN KEY (friend_id) REFERENCES friends (id)
       )
@@ -580,5 +581,21 @@ class DatabaseHelper {
     } else {
       return null;
     }
+  }
+
+  Future<Event?> fetchEventById(int eventId) async {
+    final db = await database;
+    print("Fetching event by ID: $eventId");
+    final results = await db.query(
+      'events',
+      where: 'id = ?',
+      whereArgs: [eventId],
+    );
+    if (results.isNotEmpty) {
+      print("Event found: ${results.first}");
+      return Event.fromMap(results.first);
+    }
+    print("No event found with ID: $eventId");
+    return null;
   }
 }

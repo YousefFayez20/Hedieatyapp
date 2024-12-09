@@ -124,6 +124,7 @@ class _AddEventPageState extends State<AddEventPage> {
     );
   }
 
+  // Function to open date picker
   Future<void> _pickDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -136,6 +137,7 @@ class _AddEventPageState extends State<AddEventPage> {
     }
   }
 
+  // Function to save event
   void _saveEvent() {
     if (_nameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

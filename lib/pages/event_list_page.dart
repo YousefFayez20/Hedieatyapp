@@ -5,6 +5,7 @@ import '../models/friend.dart';
 import 'event_edit_page.dart';
 import 'add_event_page.dart';
 import 'gift_list_page.dart';
+import '../utils/firestore_service.dart';
 
 class EventListPage extends StatefulWidget {
   final int userId; // Accept userId to filter events for the specific user
@@ -17,6 +18,7 @@ class EventListPage extends StatefulWidget {
 
 class _EventListPageState extends State<EventListPage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final FirestoreService _firestoreService = FirestoreService();
   List<Event> _events = [];
   List<Friend> _friends = []; // Store friends for the user
   String _sortColumn = 'name';
@@ -29,7 +31,15 @@ class _EventListPageState extends State<EventListPage> {
   }
 
   Future<void> _fetchData() async {
-    final events = await _databaseHelper.fetchEventsByUserId(widget.userId);
+    // Sync events from Firestore
+    final email = await _databaseHelper.getEmailByUserId(widget.userId);
+    if (email == null) {
+      print("Error: No email found for the given user ID");
+      return;
+    } // Get user's email dynamically
+    await _firestoreService.syncEventsWithFirestore(widget.userId, email);
+
+    final events = await _firestoreService.fetchEventsFromFirestore(widget.userId,email); // Fetch events from Firestore
     final friends = await _databaseHelper.fetchAllFriends(widget.userId);
 
     setState(() {
@@ -37,7 +47,6 @@ class _EventListPageState extends State<EventListPage> {
       _friends = friends;
     });
   }
-
 
   Future<void> _addOrEditEvent(Event? event) async {
     if (event == null) {
@@ -47,7 +56,13 @@ class _EventListPageState extends State<EventListPage> {
         MaterialPageRoute(
           builder: (context) => AddEventPage(
             onAdd: (newEvent) async {
+              final email = await _databaseHelper.getEmailByUserId(widget.userId);
+              if (email == null) {
+                print("Error: No email found for the given user ID");
+                return;
+              }
               await _databaseHelper.insertEvent(newEvent);
+              await _firestoreService.addEventToFirestore(newEvent, email);
               _fetchData();
             },
             userId: widget.userId,
