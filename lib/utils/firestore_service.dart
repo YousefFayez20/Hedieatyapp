@@ -38,6 +38,7 @@ class FirestoreService {
       return null;
     }
   }
+
   Future<User?> getUserFromFirestoreAndSync(String email) async {
     try {
       var userDoc = await _db.collection('users').doc(email).get();
@@ -67,6 +68,7 @@ class FirestoreService {
       return null;
     }
   }
+
   // Add a user to Firestore
   Future<void> addUserToFirestore(User user) async {
     try {
@@ -82,8 +84,7 @@ class FirestoreService {
   }
 
   // Fetch all friends of a user from Firestore and sync with SQLite
-// Fetch all friends of a user from Firestore and sync with SQLite
-  Future<List<Friend>> syncFriendsWithFirestore(String email) async {
+  Future<List<Friend>> syncFriendsWithFirestore(String email, int userId) async {
     try {
       // Fetch friends from Firestore
       var friendDocs = await _db.collection('users')
@@ -99,7 +100,7 @@ class FirestoreService {
           name: data['name'],
           profileImage: data['profile_image'],
           upcomingEvents: data['upcoming_events'],
-          userId: null, // Not needed here for Firestore sync
+          userId: userId, // Not needed here for Firestore sync
           firebaseId: doc.id, // Firestore document ID
         );
 

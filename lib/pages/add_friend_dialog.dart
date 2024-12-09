@@ -52,12 +52,34 @@ class _AddFriendDialogState extends State<AddFriendDialog> {
     );
 
     try {
-      final insertedId = await _dbHelper.insertFriend(newFriend);
-      await _firestoreService.addFriendToFirestore(newFriend, email);
-      final updatedFriend = newFriend.copyWith(id: insertedId);// Use email for Firestore operation
-      widget.onAdd(newFriend); // Call the callback to update the UI
 
-      Navigator.of(context).pop(); // Close the dialog
+      // Check if the friend already exists in the local database by firebase_id
+      if (newFriend.firebaseId != null) {
+        final existingFriend = await _dbHelper.fetchFriendByFirebaseId(newFriend.firebaseId!);
+        // Proceed with your logic
+      } else {
+        print("Error: Friend's firebaseId is null.");
+        // Handle the error (e.g., show a message, skip the operation)
+      }
+
+      //if (existingFriend != null) {
+        // If the friend already exists, show a message and don't insert again
+        //ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('This friend is already added.')));
+        //return;
+      //}
+
+      // Insert the new friend into the database
+      //final insertedId = await _dbHelper.insertFriend(newFriend);
+      await _firestoreService.addFriendToFirestore(newFriend, email);
+
+      // After insertion, update the friend with the inserted ID
+      //final updatedFriend = newFriend.copyWith(id: insertedId);
+
+      // Call the callback to update the UI with the new friend
+      //widget.onAdd(updatedFriend);
+
+      // Close the dialog
+      Navigator.of(context).pop();
     } catch (error) {
       print('Error adding friend: $error');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to add friend.')));

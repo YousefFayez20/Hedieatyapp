@@ -211,7 +211,11 @@ class DatabaseHelper {
   Future<int> insertFriend(Friend friend) async {
     final db = await database;
     print("Inserting friend: ${friend.toMap()}");
-    return await db.insert('friends', friend.toMap());
+    return await db.insert(
+        'friends',
+        friend.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace
+    );
   }
   Future<Friend?> fetchFriendById(int friendId) async {
     final db = await database;
@@ -220,6 +224,11 @@ class DatabaseHelper {
       return Friend.fromMap(results.first);
     }
     return null;
+  }
+  Future<void> printDatabaseContents() async {
+    final db = await database;
+    final List<Map<String, dynamic>> result = await db.query('friends');
+    print('Database contents: $result');
   }
 
   Future<List<Friend>> fetchAllFriends(int userId) async {
@@ -503,7 +512,7 @@ class DatabaseHelper {
 
     final results = await db.query(
         'friends',
-        where: 'firebaseId = ?',
+        where: 'firebase_id = ?',
         whereArgs: [firebaseId]
     );
 
@@ -515,5 +524,61 @@ class DatabaseHelper {
     print("No friend found with Firebase ID: $firebaseId");
     return null;
   }
+  Future<int> insertOrUpdateFriend(Friend friend) async {
+    final db = await database;
 
+    // Check if the friend already exists in the database by their firebase_id
+    final existingFriend = await _getFriendByFirebaseId(friend.firebaseId!);
+
+    if (existingFriend != null) {
+      // If the friend exists, update them (if needed) or just return their existing ID
+      print("Friend already exists: ${existingFriend.name}");
+      return existingFriend.id!;
+    }
+
+    // If the friend doesn't exist, insert them into the database
+    print("Inserting new friend: ${friend.toMap()}");
+    return await db.insert('friends', friend.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+// Helper method to fetch friend by firebase_id
+  Future<Friend?> _getFriendByFirebaseId(String firebaseId) async {
+    final db = await database;
+
+    // Query the database to check if a friend with the same firebase_id already exists
+    final results = await db.query(
+      'friends',
+      where: 'firebase_id = ?',
+      whereArgs: [firebaseId],
+    );
+
+    // Return the first result if found, otherwise return null
+    if (results.isNotEmpty) {
+      return Friend.fromMap(results.first);
+    }
+    return null;
+  }
+
+// Method to fetch friends from Firestore and insert/update them in the local database
+  Future<void> syncFriendsFromFirestore(List<Friend> friendsFromFirestore) async {
+    for (var friend in friendsFromFirestore) {
+      // Insert or update the friend in the local database
+      await insertOrUpdateFriend(friend);
+    }
+  }
+  Future<Friend?> fetchFriendByFirebaseId(String firebaseId) async {
+    final db = await database;
+
+    final result = await db.query(
+      'friends',
+      where: 'firebase_id = ?',
+      whereArgs: [firebaseId],
+    );
+
+    if (result.isNotEmpty) {
+      return Friend.fromMap(result.first);
+    } else {
+      return null;
+    }
+  }
 }

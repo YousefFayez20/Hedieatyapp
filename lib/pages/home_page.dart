@@ -33,6 +33,10 @@ class _HomePageState extends State<HomePage> {
   // Fetch all friends and calculate the total number of events dynamically
   Future<void> _fetchFriends() async {
     try {
+      // Sync friends with Firestore and update the local list
+      await _syncFriendsWithFirestore();
+
+      // After syncing, fetch all friends from the local database (SQLite)
       final fetchedFriends = await _databaseHelper.fetchAllFriends(widget.userId);
 
       // For each friend, fetch the total count of events
@@ -53,6 +57,44 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
+
+  // Sync the friends data with Firestore and update the local SQLite database
+  Future<void> _syncFriendsWithFirestore() async {
+    try {
+      final email = await _databaseHelper.getEmailByUserId(widget.userId);
+      if (email == null) {
+        print("Error: No email found for the given user ID");
+        return;
+      }
+
+      // Fetch synced friends from Firestore
+      List<Friend> syncedFriends = await _firestoreService.syncFriendsWithFirestore(email, widget.userId);
+      print('Synced friends: ${syncedFriends.map((f) => f.toMap()).toList()}');
+
+      // Update local database with Firestore friends (insert or update)
+      for (var friend in syncedFriends) {
+        // Check if the friend already exists in the local database
+        final existingFriend = await _databaseHelper.fetchFriendByFirebaseId(friend.firebaseId!);
+        if (existingFriend == null) {
+          // Insert the friend if it doesn't exist
+          final insertedId = await _databaseHelper.insertFriend(friend);
+          friend = friend.copyWith(id: insertedId); // Ensure the ID is not null
+        } else {
+          // Update the existing friend if they already exist
+          await _databaseHelper.insertOrUpdateFriend(friend);
+        }
+      }
+
+      // Update the state with the synced friends
+      setState(() {
+        friends = syncedFriends;
+      });
+    } catch (e) {
+      print('Error syncing friends with Firestore: $e');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to sync friends with Firestore.')));
+    }
+  }
+
 
   void _navigateToCreateEvent() {
     Navigator.push(
@@ -226,7 +268,9 @@ class _HomePageState extends State<HomePage> {
               userId: widget.userId,
               onAdd: (Friend newFriend) async {
                 setState(() {
-                  friends.add(newFriend); // Update the list after adding the new friend
+                  if (!friends.any((friend) => friend.firebaseId == newFriend.firebaseId)) {
+                    friends.add(newFriend); // Add the new friend to the list
+                  }
                 });
                 print('Friend added: ${newFriend.toMap()}');
                 await _fetchFriends(); // Refresh the friends list
