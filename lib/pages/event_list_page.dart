@@ -31,19 +31,25 @@ class _EventListPageState extends State<EventListPage> {
   }
 
   Future<void> _fetchData() async {
-    // Sync events from Firestore
     final email = await _databaseHelper.getEmailByUserId(widget.userId);
     if (email == null) {
       print("Error: No email found for the given user ID");
       return;
-    } // Get user's email dynamically
-    await _firestoreService.syncEventsWithFirestore(widget.userId, email);
+    }
 
-    final events = await _firestoreService.fetchEventsFromFirestore(widget.userId,email); // Fetch events from Firestore
+    // Fetch events for the user
+    final userEvents = await _firestoreService.fetchEventsFromFirestore(widget.userId, email);
+
+    // Fetch and add friend events separately
     final friends = await _databaseHelper.fetchAllFriends(widget.userId);
+    List<Event> friendEvents = [];
+    for (var friend in friends) {
+      final friendEventsList = await _firestoreService.fetchFriendEventsFromFirestore(widget.userId, email, friend.firebaseId!);
+      friendEvents.addAll(friendEventsList);
+    }
 
     setState(() {
-      _events = events.where((event) => event.userId == widget.userId).toList();
+      _events = userEvents + friendEvents; // Combine both lists
       _friends = friends;
     });
   }
@@ -57,12 +63,21 @@ class _EventListPageState extends State<EventListPage> {
           builder: (context) => AddEventPage(
             onAdd: (newEvent) async {
               final email = await _databaseHelper.getEmailByUserId(widget.userId);
+
               if (email == null) {
                 print("Error: No email found for the given user ID");
                 return;
               }
+              if (newEvent.friendId != null) {
+                final friendfirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
+                // If the event is for a friend, add it to their event collection
+                await _firestoreService.addFriendEventToFirestore(newEvent, email, friendfirebaseId!);
+              } else {
+                // Otherwise, add it to the user's own event collection
+                await _firestoreService.addEventToFirestore(newEvent, email);
+              }
               await _databaseHelper.insertEvent(newEvent);
-              await _firestoreService.addEventToFirestore(newEvent, email);
+
               _fetchData();
             },
             userId: widget.userId,

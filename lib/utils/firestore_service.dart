@@ -223,7 +223,106 @@ class FirestoreService {
     } catch (e) {
       print("Error fetching events: $e");
       return [];
+
+
+
+    }
+  }
+  Future<List<Event>> fetchFriendEventsFromFirestore(int userId, String email, String friendFirebaseId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .doc(email) // User's email
+          .collection('friends') // Accessing the friend's collection
+          .doc(friendFirebaseId) // Firebase ID of the friend
+          .collection('events') // Friend's events collection
+          .get();
+
+      List<Event> events = querySnapshot.docs.map((doc) {
+        var data = doc.data();
+        return Event(
+          id: null, // SQLite will generate the ID
+          name: data['name'],
+          description: data['description'],
+          location: data['location'],
+          category: data['category'],
+          date: (data['date'] as Timestamp).toDate(),
+          userId: userId,
+          friendId: data['friend_id'], // Passing Firebase ID of the friend
+          status: data['status'],
+        );
+      }).toList();
+
+      return events;
+    } catch (e) {
+      print("Error fetching friend events: $e");
+      return [];
+    }
+  }
+  Future<void> addFriendEventToFirestore(Event event, String email, String friendFirebaseId) async {
+    try {
+      await _db.collection('users')
+          .doc(email) // User's email
+          .collection('friends') // Friend's collection
+          .doc(friendFirebaseId) // Friend's Firebase ID
+          .collection('events') // Friend's events collection
+          .add({
+        'name': event.name,
+        'description': event.description,
+        'location': event.location,
+        'category': event.category,
+        'date': event.date,
+        'status': event.status,
+      });
+
+      print('Friend event added to Firestore');
+    } catch (e) {
+      print('Error adding friend event to Firestore: $e');
     }
   }
 
+
+  Future<void> syncFriendEventsWithFirestore(int userId, String? email, String friendFirebaseId) async {
+    if (email == null) {
+      print("Error: No email found for the given user ID");
+      return;
+    }
+
+    try {
+      // Fetch events of the friend using Firebase ID
+      var eventDocs = await _db.collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId) // Friend's Firebase ID
+          .collection('events') // Friend's events collection
+          .get();
+
+      for (var doc in eventDocs.docs) {
+        var data = doc.data();
+        Event event = Event(
+          id: null, // SQLite will generate the ID
+          name: data['name'],
+          description: data['description'],
+          location: data['location'],
+          category: data['category'],
+          date: (data['date'] as Timestamp).toDate(),
+          userId: userId,
+          firebaseId: friendFirebaseId, // Pass Firebase ID
+          status: data['status'],
+        );
+
+        // Sync event to SQLite if not already present
+        if (event.id != null) {
+          Event? localEvent = await _databaseHelper.fetchEventById(event.id!);
+          if (localEvent == null) {
+            await _databaseHelper.insertEvent(event);
+          }
+        } else {
+          print("Event ID is null");
+        }
+      }
+    } catch (e) {
+      print('Error syncing friend events from Firestore: $e');
+    }
+  }
 }

@@ -598,4 +598,18 @@ class DatabaseHelper {
     print("No event found with ID: $eventId");
     return null;
   }
+  Future<String?> getFirebaseIdByFriendId(int friendId) async {
+    final db = await database;
+    final results = await db.query(
+      'friends',
+      where: 'id = ?',
+      whereArgs: [friendId],
+    );
+
+    if (results.isNotEmpty) {
+      return results.first['firebase_id'] as String?;
+    }
+    return null;
+  }
+
 }
