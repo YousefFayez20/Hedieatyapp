@@ -307,6 +307,54 @@ class FirestoreService {
       return [];
     }
   }
+  Future<List<Gift>> fetchGiftsForEvent(
+      String email, String eventFirebaseId, {String? friendFirebaseId}) async {
+    try {
+      CollectionReference<Map<String, dynamic>> collectionPath;
+
+      if (friendFirebaseId != null && friendFirebaseId.isNotEmpty) {
+        // Path for friend's event gifts
+        collectionPath = _db
+            .collection('users')
+            .doc(email)
+            .collection('friends')
+            .doc(friendFirebaseId)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts');
+      } else {
+        // Path for personal event gifts
+        collectionPath = _db
+            .collection('users')
+            .doc(email)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts');
+      }
+
+      // Fetch and map the gifts
+      final querySnapshot = await collectionPath.get();
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return Gift(
+          id: null, // SQLite will generate the ID
+          name: data['name'],
+          price: (data['price'] as num).toDouble(),
+          description: data['description'],
+          category: data['category'],
+          status: data['status'],
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          giftFirebaseId: doc.id,
+        );
+      }).toList();
+    } catch (e) {
+      print("Error fetching gifts for event: $e");
+      return [];
+    }
+  }
+
+
   Future<List<Gift>> fetchGiftsForFriendEvent(
       String email, String friendFirebaseId, String eventFirebaseId) async {
     try {
@@ -367,14 +415,10 @@ class FirestoreService {
       print('Error adding friend event to Firestore: $e');
     }
   }
-  Future<void> addGiftToFriendEvent(
+  Future<String> addGiftToFriendEvent(
       String email, String friendFirebaseId, String eventFirebaseId, Gift gift) async {
     try {
-      print("Adding gift to Firestore...");
-      print("Firestore Path: users/$email/friends/$friendFirebaseId/events/$eventFirebaseId/gifts");
-      print("Gift Details: ${gift.toMap()}");
-
-      await _db
+      final docRef = await _db
           .collection('users')
           .doc(email)
           .collection('friends')
@@ -392,11 +436,14 @@ class FirestoreService {
         'category': gift.category,
       });
 
-      print('Gift added successfully to Firestore.');
+      print('Gift added successfully to Firestore with ID: ${docRef.id}');
+      return docRef.id; // Return the Firebase document ID
     } catch (e) {
       print('Error adding gift to Firestore: $e');
+      throw e;
     }
   }
+
 
 
   Future<void> updateGiftStatus(
@@ -556,7 +603,7 @@ class FirestoreService {
       });
 
       print('Gift added successfully to Firestore with ID: ${docRef.id}');
-      return docRef.id;
+      return docRef.id; // Return the Firebase document ID
     } catch (e) {
       print('Error adding gift to Firestore: $e');
       throw e;

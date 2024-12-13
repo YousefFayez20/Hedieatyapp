@@ -42,40 +42,39 @@ class _GiftEditPageState extends State<GiftEditPage> {
 
   Future<void> _initializeData() async {
     try {
-      // Fetch the event from the local database
       final event = await _databaseHelper.fetchEventById(widget.eventId);
+      print("Event Fetched: $event");
+
       if (event == null) throw Exception("Event not found");
 
-      // Fetch the user's email
       final userEmail = await _databaseHelper.getEmailByUserId(event.userId);
       if (userEmail == null) throw Exception("User email not found");
       _userEmail = userEmail;
+      print("User Email: $_userEmail");
 
-      // Fetch the Firebase ID for the event
       if (event.firebaseId == null || event.firebaseId!.isEmpty) {
         throw Exception("Event Firebase ID not found for event ${event.id}");
       }
       _eventFirebaseId = event.firebaseId!;
       print("Event Firebase ID: $_eventFirebaseId");
 
-      // Fetch the friend's Firebase ID if applicable
       if (event.friendId != null) {
         _friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!) ?? '';
         print("Friend Firebase ID: $_friendFirebaseId");
       } else {
-        _friendFirebaseId = ''; // For personal events
+        _friendFirebaseId = '';
       }
 
-      print('Initialized Data: User Email: $_userEmail, Event Firebase ID: $_eventFirebaseId, Friend Firebase ID: $_friendFirebaseId');
-
-      // Populate fields for editing if gift is not null
       if (widget.gift != null) {
         _name = widget.gift!.name;
         _description = widget.gift!.description;
         _category = widget.gift!.category;
         _price = widget.gift!.price;
         _status = widget.gift!.status;
+        print("Gift Status on Init: $_status");
         _isPledged = _status == 'Pledged';
+        print("Is Pledged: $_isPledged");
+
         if (widget.gift!.imageUrl != null && widget.gift!.imageUrl!.isNotEmpty) {
           _imageFile = File(widget.gift!.imageUrl!);
         }
@@ -100,64 +99,58 @@ class _GiftEditPageState extends State<GiftEditPage> {
     }
   }
   Future<void> _saveGift() async {
-    if (!_isPledged && !_formKey.currentState!.validate()) return; // Validate only if not pledged
+    if (!_isPledged && !_formKey.currentState!.validate()) return;
 
     _formKey.currentState!.save();
 
-    if (_eventFirebaseId == null || _eventFirebaseId!.isEmpty) {
-      print("Error: Event Firebase ID is null or empty");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Event Firebase ID is not available. Please sync the event first.')),
-      );
-      return;
-    }
+    print("Gift Status Before Save: $_status");
+    print("Is Pledged Before Save: $_isPledged");
 
     final gift = Gift(
       id: widget.gift?.id,
-      name: _name.isEmpty ? widget.gift?.name ?? '' : _name, // Retain name if empty
-      description: _description.isEmpty ? widget.gift?.description ?? '' : _description, // Retain description if empty
+      name: _name.isEmpty ? widget.gift?.name ?? '' : _name,
+      description: _description.isEmpty ? widget.gift?.description ?? '' : _description,
       category: _category,
-      price: _price > 0 ? _price : widget.gift?.price ?? 0, // Retain price if empty
+      price: _price > 0 ? _price : widget.gift?.price ?? 0,
       status: _status,
       eventId: widget.eventId,
-      imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '', // Retain image if unchanged
+      imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '',
       createdAt: widget.gift?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       giftFirebaseId: widget.gift?.giftFirebaseId,
     );
 
-
     try {
-      if (widget.gift == null) {
-        // Adding a new gift
-        final firebaseGiftId = await _firestoreService.addGiftToPersonalEvent(
-          _userEmail!,
+      final event = await _databaseHelper.fetchEventById(widget.eventId);
+      if (event == null) throw Exception("Event not found");
+
+      final email = await _databaseHelper.getEmailByUserId(event.userId);
+      if (email == null) throw Exception("User email not found");
+
+      if (event.friendId != null) {
+        // Adding gift to a friend's event
+        final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+        if (friendFirebaseId == null) throw Exception("Friend Firebase ID is missing");
+
+        final firebaseGiftId = await _firestoreService.addGiftToFriendEvent(
+          email,
+          friendFirebaseId,
           _eventFirebaseId!,
           gift,
         );
-
-        // Assign the Firestore ID to the gift and insert it into the local database
         final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
         await _databaseHelper.insertGift(insertedGift);
+        print("Gift added successfully to friend's event: ${insertedGift.toMap()}");
       } else {
-        // Updating an existing gift in Firestore
-        if (gift.giftFirebaseId != null) {
-          await _firestoreService.updateGiftStatus(
-            _userEmail!,
-            _eventFirebaseId!,
-            gift.giftFirebaseId!,
-            _status,
-          );
-          await _firestoreService.updateGiftDetails(
-            _userEmail!,
-            _eventFirebaseId!,
-            gift.giftFirebaseId!,
-            gift,
-          );
-        }
-
-        // Update the gift locally
-        await _databaseHelper.updateGift(gift);
+        // Adding gift to a personal event
+        final firebaseGiftId = await _firestoreService.addGiftToPersonalEvent(
+          email,
+          _eventFirebaseId!,
+          gift,
+        );
+        final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
+        await _databaseHelper.insertGift(insertedGift);
+        print("Gift added successfully to personal event: ${insertedGift.toMap()}");
       }
 
       Navigator.pop(context, true);
