@@ -99,32 +99,18 @@ class _GiftEditPageState extends State<GiftEditPage> {
       });
     }
   }
-
   Future<void> _saveGift() async {
     if (!_formKey.currentState!.validate()) return;
 
     _formKey.currentState!.save();
 
-    if (_userEmail == null || _userEmail!.isEmpty) {
-      print("Error: User email is null or empty");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User email is not available. Please try again.')),
-      );
-      return;
-    }
-
     if (_eventFirebaseId == null || _eventFirebaseId!.isEmpty) {
       print("Error: Event Firebase ID is null or empty");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Event Firebase ID is not available. Please try again.')),
+        SnackBar(content: Text('Event Firebase ID is not available. Please sync the event first.')),
       );
       return;
     }
-
-    print("Preparing to save gift...");
-    print("User Email: $_userEmail");
-    print("Friend Firebase ID: $_friendFirebaseId");
-    print("Event Firebase ID: $_eventFirebaseId");
 
     final gift = Gift(
       id: widget.gift?.id,
@@ -133,7 +119,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
       category: _category,
       price: _price,
       status: _status,
-      eventId: widget.eventId, // Local eventId (used in SQLite)
+      eventId: widget.eventId,
       imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '',
       createdAt: widget.gift?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
@@ -142,35 +128,23 @@ class _GiftEditPageState extends State<GiftEditPage> {
 
     try {
       if (widget.gift == null) {
-        // Add new gift
-        final insertedGift = await _databaseHelper.insertAndReturnGift(gift);
-        print("Inserted Gift: ${insertedGift.toMap()}");
-        await _firestoreService.addGiftToFriendEvent(
+        // Adding a new gift
+        final firebaseGiftId = await _firestoreService.addGiftToPersonalEvent(
           _userEmail!,
-          _friendFirebaseId!,
-          _eventFirebaseId!, // Pass the Firebase ID of the event
-          insertedGift,
+          _eventFirebaseId!,
+          gift,
         );
+
+        // Assign the Firestore ID to the gift and insert it into the local database
+        final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
+        await _databaseHelper.insertGift(insertedGift);
       } else {
-        // Update existing gift
+        // Updating an existing gift
         await _databaseHelper.updateGift(gift);
-        if (gift.giftFirebaseId != null) {
-          print("Updating existing gift with Firebase ID: ${gift.giftFirebaseId}");
-          await _firestoreService.updateGiftStatus(
-            _userEmail!,
-            _friendFirebaseId!,
-            _eventFirebaseId!, // Pass the Firebase ID of the event
-            gift.giftFirebaseId!,
-            gift.status,
-          );
-        }
       }
       Navigator.pop(context, true);
     } catch (e) {
       print("Error saving gift: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save gift. Please try again.')),
-      );
     }
   }
 

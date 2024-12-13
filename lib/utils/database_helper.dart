@@ -686,4 +686,17 @@ class DatabaseHelper {
     // Return null if no friend with the given firebaseId is found
     return null;
   }
+
+  Future<int> updateGiftStatusLocally(int giftId, String newStatus) async {
+    final db = await database;
+    final result = await db.update(
+      'gifts',
+      {'status': newStatus, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [giftId],
+    );
+    print('Gift status updated locally for gift ID: $giftId.');
+    return result;
+  }
+
 }

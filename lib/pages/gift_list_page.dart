@@ -26,75 +26,75 @@ class _GiftListPageState extends State<GiftListPage> {
   bool _isAscending = true;
   bool _isSyncing = false;
 
-  late String _userEmail;
-  late String _friendFirebaseId;
-
   @override
   void initState() {
     super.initState();
-    _initializeData();
+    _syncGiftsFromFirestore();
   }
 
-  Future<void> _initializeData() async {
+  Future<void> _syncGiftsFromFirestore() async {
     setState(() {
       _isSyncing = true;
     });
 
     try {
-      print('Event ID passed: ${widget.eventId}');
-      // Fetch event details
       final event = await _databaseHelper.fetchEventById(widget.eventId);
-      if (event == null) throw Exception("Event not found");
-
-      // Fetch user email
-      final userEmail = await _databaseHelper.getEmailByUserId(event.userId);
-      if (userEmail == null) throw Exception("User email not found");
-      _userEmail = userEmail;
-
-      // Fetch friend's Firebase ID
-      if (event.friendId != null) {
-        final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
-        if (friendFirebaseId == null) throw Exception("Friend's Firebase ID not found");
-        _friendFirebaseId = friendFirebaseId;
-      } else {
-        _friendFirebaseId = ""; // Personal event
+      if (event == null) {
+        throw Exception("Event not found in the local database.");
       }
 
-      // Fetch gifts
-      await _fetchGifts();
-    } catch (e) {
-      print("Error initializing data: $e");
-    } finally {
-      setState(() {
-        _isSyncing = false;
-      });
-    }
-  }
+      final email = await _databaseHelper.getEmailByUserId(event.userId);
+      if (email == null) {
+        throw Exception("User email not found for the event.");
+      }
 
-  Future<void> _fetchGifts() async {
-    try {
-      // Fetch gifts from Firestore
-      final firestoreGifts = await _firestoreService.fetchGiftsForFriendEvent(
-        _userEmail,
-        _friendFirebaseId,
-        widget.eventId.toString(),
-      );
+      final eventFirebaseId = event.firebaseId;
+      if (eventFirebaseId == null || eventFirebaseId.isEmpty) {
+        throw Exception("Firebase ID for the event is missing.");
+      }
 
-      // Sync Firestore gifts with local database
-      for (var gift in firestoreGifts) {
-        final localGift = await _databaseHelper.getGiftByFirebaseId(gift.giftFirebaseId!);
-        if (localGift == null) {
-          await _databaseHelper.insertGift(gift);
+      if (event.friendId != null) {
+        // Sync gifts for friend's event
+        final friendFirebaseId =
+        await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+        if (friendFirebaseId == null) {
+          throw Exception("Friend Firebase ID is missing for the event.");
+        }
+
+        await _firestoreService.syncGiftsForFriendEventWithFirestore(
+          event.userId,
+          email,
+          friendFirebaseId,
+          eventFirebaseId,
+          widget.eventId,
+        );
+      } else {
+        // Sync gifts for personal event
+        final firestoreGifts = await _firestoreService.fetchGiftsForPersonalEvent(
+          email,
+          eventFirebaseId,
+        );
+
+        for (var gift in firestoreGifts) {
+          gift = gift.copyWith(eventId: widget.eventId);
+          final localGift = await _databaseHelper.getGiftByFirebaseId(gift.giftFirebaseId!);
+
+          if (localGift == null) {
+            await _databaseHelper.insertGift(gift);
+          }
         }
       }
 
-      // Fetch gifts from local database
       final localGifts = await _databaseHelper.fetchGiftsByEventId(widget.eventId);
       setState(() {
         _gifts = localGifts;
       });
     } catch (e) {
-      print('Error fetching gifts: $e');
+      print("Error syncing gifts: $e");
+    } finally {
+      setState(() {
+        _isSyncing = false;
+      });
     }
   }
 
@@ -138,7 +138,36 @@ class _GiftListPageState extends State<GiftListPage> {
     );
 
     if (result == true) {
-      _fetchGifts();
+      final event = await _databaseHelper.fetchEventById(widget.eventId);
+      if (event == null) {
+        print("Error: Event not found.");
+        return;
+      }
+
+      final email = await _databaseHelper.getEmailByUserId(event.userId);
+      if (email == null) {
+        print("Error: User email not found.");
+        return;
+      }
+
+      if (gift == null) {
+        // Adding a new gift
+        try {
+          final addedGift = await _databaseHelper.insertAndReturnGift(result);
+          await _firestoreService.addGiftToPersonalEvent(
+            email,
+            event.firebaseId!,
+            addedGift,
+          );
+        } catch (e) {
+          print("Error adding gift: $e");
+        }
+      } else {
+        // Editing an existing gift (handled elsewhere in FirestoreService)
+        print("Gift edited. Syncing handled elsewhere.");
+      }
+
+      _syncGiftsFromFirestore();
     }
   }
 
@@ -149,74 +178,126 @@ class _GiftListPageState extends State<GiftListPage> {
 
       // Delete from Firestore if firebaseId exists
       if (firebaseId != null) {
-        await _firestoreService.deleteGiftFromFriendEvent(
-          _userEmail,
-          _friendFirebaseId,
-          widget.eventId.toString(),
-          firebaseId,
-        );
+        final event = await _databaseHelper.fetchEventById(widget.eventId);
+        if (event == null) return;
+
+        final email = await _databaseHelper.getEmailByUserId(event.userId);
+        final friendFirebaseId = event.friendId != null
+            ? await _databaseHelper.getFirebaseIdByFriendId(event.friendId!)
+            : null;
+
+        if (email != null) {
+          await _firestoreService.deleteGiftFromFriendEvent(
+            email,
+            friendFirebaseId ?? "",
+            event.firebaseId!,
+            firebaseId,
+          );
+        }
       }
 
-      _fetchGifts();
+      _syncGiftsFromFirestore();
     } catch (e) {
-      print('Error deleting gift: $e');
+      print("Error deleting gift: $e");
     }
   }
-
-  void _confirmDelete(int id, String? firebaseId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Gift'),
-        content: const Text('Are you sure you want to delete this gift?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteGift(id, firebaseId);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+  Color _getGiftStatusColor(String status) {
+    switch (status) {
+      case 'Pledged':
+        return Colors.green;
+      case 'Purchased':
+        return Colors.red;
+      default:
+        return Colors.blueGrey;
+    }
   }
-
   Widget _buildGiftTile(Gift gift) {
-    final isPledged = gift.status == 'Pledged';
-
     return ListTile(
+      tileColor: _getGiftStatusColor(gift.status),
       title: Text(
         gift.name,
         style: TextStyle(
-          color: isPledged ? Colors.grey : Colors.black,
+          color: gift.status == 'Pledged' || gift.status == 'Purchased'
+              ? Colors.white
+              : Colors.black,
         ),
       ),
       subtitle: Text(
         'Category: ${gift.category} | Price: \$${gift.price}',
         style: TextStyle(
-          color: isPledged ? Colors.grey : Colors.black,
+          color: gift.status == 'Pledged' || gift.status == 'Purchased'
+              ? Colors.white70
+              : Colors.black87,
         ),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => _addOrEditGift(gift),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _confirmDelete(gift.id!, gift.giftFirebaseId),
-          ),
-        ],
+      trailing: gift.status == 'Pledged'
+          ? null // Disable status change for Pledged
+          : DropdownButton<String>(
+        value: gift.status,
+        items: ['Available', 'Pledged', 'Purchased']
+            .map((status) => DropdownMenuItem(value: status, child: Text(status)))
+            .toList(),
+        onChanged: (newStatus) async {
+          if (newStatus != null && newStatus != gift.status) {
+            await _updateGiftStatus(gift, newStatus);
+          }
+        },
       ),
-      onTap: () => _addOrEditGift(gift),
     );
+  }
+
+
+  Future<void> _updateGiftStatus(Gift gift, String newStatus) async {
+    try {
+      final event = await _databaseHelper.fetchEventById(widget.eventId);
+      if (event == null) throw Exception("Event not found.");
+
+      final email = await _databaseHelper.getEmailByUserId(event.userId);
+      if (email == null) throw Exception("User email not found.");
+
+      if (gift.giftFirebaseId != null) {
+        // Determine whether it's a personal or friend event
+        if (event.friendId != null) {
+          final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+          if (friendFirebaseId == null) {
+            throw Exception("Friend Firebase ID is missing.");
+          }
+
+          // Update status for friend's event
+          await _firestoreService.updateGiftStatus(
+            email,
+            event.firebaseId!,
+            gift.giftFirebaseId!,
+            newStatus,
+            friendFirebaseId: friendFirebaseId,
+          );
+        } else {
+          // Update status for personal event
+          await _firestoreService.updateGiftStatus(
+            email,
+            event.firebaseId!,
+            gift.giftFirebaseId!,
+            newStatus,
+          );
+        }
+
+        // Update the gift locally
+        final updatedGift = gift.copyWith(status: newStatus);
+        await _databaseHelper.updateGift(updatedGift);
+
+        // Refresh the UI
+        setState(() {
+          final index = _gifts.indexWhere((g) => g.id == gift.id);
+          if (index != -1) {
+            _gifts[index] = updatedGift;
+          }
+        });
+
+        print('Gift status updated to $newStatus.');
+      }
+    } catch (e) {
+      print('Error updating gift status: $e');
+    }
   }
 
   @override

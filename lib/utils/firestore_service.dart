@@ -161,6 +161,7 @@ class FirestoreService {
           userId: userId,
           friendId: data['friend_id'],
           status: data['status'],
+          firebaseId: doc.id,
 
         );
         print("Converted Firestore event to Event object: ${event.toMap()}");
@@ -204,6 +205,7 @@ class FirestoreService {
           updatedAt: (data['updatedAt'] as Timestamp).toDate(),
           status: data['status'],
           category: data['category'],
+            giftFirebaseId: doc.id,
           eventId: eventId
         );
 
@@ -398,27 +400,45 @@ class FirestoreService {
 
 
   Future<void> updateGiftStatus(
-      String email, String friendFirebaseId, String eventFirebaseId, String giftFirebaseId, String newStatus) async {
+      String email, String eventFirebaseId, String giftFirebaseId, String newStatus,
+      {String? friendFirebaseId}) async {
     try {
-      await _db
-          .collection('users')
-          .doc(email)
-          .collection('friends')
-          .doc(friendFirebaseId)
-          .collection('events')
-          .doc(eventFirebaseId)
-          .collection('gifts')
-          .doc(giftFirebaseId)
-          .update({
+      DocumentReference<Map<String, dynamic>> giftDoc;
+
+      if (friendFirebaseId != null) {
+        // Path for friend's gifts
+        giftDoc = _db
+            .collection('users')
+            .doc(email)
+            .collection('friends')
+            .doc(friendFirebaseId)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts')
+            .doc(giftFirebaseId);
+      } else {
+        // Path for personal gifts
+        giftDoc = _db
+            .collection('users')
+            .doc(email)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts')
+            .doc(giftFirebaseId);
+      }
+
+      await giftDoc.update({
         'status': newStatus,
-        'updatedAt': FieldValue.serverTimestamp(), // Update timestamp
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('Gift status updated');
+      print('Gift status updated successfully in Firestore.');
     } catch (e) {
       print('Error updating gift status: $e');
+      throw e;
     }
   }
+
   Future<void> deleteGiftFromFriendEvent(
       String email, String friendFirebaseId, String eventFirebaseId, String giftFirebaseId) async {
     try {
@@ -488,4 +508,103 @@ class FirestoreService {
       print('Error syncing friend events from Firestore: $e');
     }
   }
+  Future<List<Gift>> fetchGiftsForPersonalEvent(String email, String eventFirebaseId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return Gift(
+          id: null,
+          name: data['name'],
+          price: data['price'].toDouble(),
+          description: data['description'],
+          category: data['category'],
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          status: data['status'],
+          giftFirebaseId: doc.id,
+        );
+      }).toList();
+    } catch (e) {
+      print("Error fetching gifts for personal event: $e");
+      return [];
+    }
+  }
+  Future<String> addGiftToPersonalEvent(String email, String eventFirebaseId, Gift gift) async {
+    try {
+      final docRef = await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .add({
+        'name': gift.name,
+        'price': gift.price,
+        'description': gift.description,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'status': gift.status,
+        'category': gift.category,
+      });
+
+      print('Gift added successfully to Firestore with ID: ${docRef.id}');
+      return docRef.id;
+    } catch (e) {
+      print('Error adding gift to Firestore: $e');
+      throw e;
+    }
+  }
+
+
+  Stream<List<Gift>> getGiftStream(
+      String email, String eventFirebaseId, {String? friendFirebaseId}) {
+    CollectionReference<Map<String, dynamic>> collectionPath;
+
+    if (friendFirebaseId != null) {
+      // Path for friend's event gifts
+      collectionPath = _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts');
+    } else {
+      // Path for personal event gifts
+      collectionPath = _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts');
+    }
+
+    // Handle snapshots and map them to Gift objects
+    return collectionPath.snapshots().map((querySnapshot) {
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return Gift(
+          id: null, // SQLite ID (handled locally)
+          name: data['name'] ?? '',
+          price: (data['price'] ?? 0).toDouble(),
+          description: data['description'] ?? '',
+          category: data['category'] ?? 'Other',
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          status: data['status'] ?? 'Available',
+          giftFirebaseId: doc.id,
+        );
+      }).toList();
+    });
+  }
+
 }
