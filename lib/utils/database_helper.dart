@@ -88,6 +88,7 @@ class DatabaseHelper {
       image_url TEXT, -- Add this column
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      gift_firebase_id TEXT,
       FOREIGN KEY (event_id) REFERENCES events (id)
     )
   ''');
@@ -263,6 +264,7 @@ class DatabaseHelper {
     assert(event.userId != null, "User ID must not be null for an event.");
     await db.insert('events', event.toMap());
     print("Event inserted: ${event.toMap()}");
+    print("Inserted Event ID: ${event.id}");
   }
 
 
@@ -366,7 +368,41 @@ class DatabaseHelper {
       whereArgs: [gift.id],
     );
   }
+  Future<Gift> insertAndReturnGift(Gift gift) async {
+    final db = await database;
 
+    // Insert the gift and get its ID
+    final giftId = await db.insert('gifts', gift.toMap());
+
+    // Return the gift with the new ID
+    return gift.copyWith(id: giftId);
+  }
+
+  Future<Gift> updateAndReturnGift(Gift gift) async {
+    final db = await database;
+
+    // Update the gift
+    await db.update(
+      'gifts',
+      gift.toMap(),
+      where: 'id = ?',
+      whereArgs: [gift.id],
+    );
+
+    // Fetch the updated gift and return it
+    final updatedGiftMap = await db.query(
+      'gifts',
+      where: 'id = ?',
+      whereArgs: [gift.id],
+      limit: 1,
+    );
+
+    if (updatedGiftMap.isNotEmpty) {
+      return Gift.fromMap(updatedGiftMap.first);
+    } else {
+      throw Exception("Failed to fetch the updated gift.");
+    }
+  }
   Future<List<Map<String, dynamic>>> fetchGiftsByFriendGroupedByEvent(int friendId) async {
     final db = await database;
 
@@ -592,12 +628,13 @@ class DatabaseHelper {
       whereArgs: [eventId],
     );
     if (results.isNotEmpty) {
-      print("Event found: ${results.first}");
+      print("Fetched Event: ${results.first}");
       return Event.fromMap(results.first);
     }
     print("No event found with ID: $eventId");
     return null;
   }
+
   Future<String?> getFirebaseIdByFriendId(int friendId) async {
     final db = await database;
     final results = await db.query(
@@ -611,5 +648,42 @@ class DatabaseHelper {
     }
     return null;
   }
+// Method to get a gift by its Firebase ID
+  Future<Gift?> getGiftByFirebaseId(String giftFirebaseId) async {
+    final db = await database;
 
+    // Query the database to check if a gift with the same Firebase ID already exists
+    final results = await db.query(
+      'gifts',
+      where: 'gift_firebase_id = ?',
+      whereArgs: [giftFirebaseId],
+    );
+
+    if (results.isNotEmpty) {
+      // Return the first result as a Gift object
+      return Gift.fromMap(results.first);
+    }
+
+    // Return null if no gift is found
+    return null;
+  }
+  Future<int?> getFriendIdByFirebaseId(String firebaseId) async {
+    final db = await database;
+
+    // Query the database to fetch the friend's ID using the firebaseId
+    final results = await db.query(
+      'friends',
+      columns: ['id'],
+      where: 'firebase_id = ?',
+      whereArgs: [firebaseId],
+    );
+
+    if (results.isNotEmpty) {
+      // Return the friend's ID
+      return results.first['id'] as int?;
+    }
+
+    // Return null if no friend with the given firebaseId is found
+    return null;
+  }
 }

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
 import '../models/event.dart';
 import '../models/friend.dart';
+import '../utils/firestore_service.dart';
 import 'event_edit_page.dart';
 import 'add_event_page.dart';
 import 'gift_list_page.dart';
-import '../utils/firestore_service.dart';
 
 class EventListPage extends StatefulWidget {
-  final int userId; // Accept userId to filter events for the specific user
+  final int userId;
 
   const EventListPage({Key? key, required this.userId}) : super(key: key);
 
@@ -20,77 +20,100 @@ class _EventListPageState extends State<EventListPage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   final FirestoreService _firestoreService = FirestoreService();
   List<Event> _events = [];
-  List<Friend> _friends = []; // Store friends for the user
-  String _sortColumn = 'name';
-  bool _isAscending = true;
+  List<Friend> _friends = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
+    _syncAndFetchEvents();
   }
 
-  Future<void> _fetchData() async {
-    final email = await _databaseHelper.getEmailByUserId(widget.userId);
-    if (email == null) {
-      print("Error: No email found for the given user ID");
-      return;
-    }
-
-    // Fetch events for the user
-    final userEvents = await _firestoreService.fetchEventsFromFirestore(widget.userId, email);
-
-    // Fetch and add friend events separately
-    final friends = await _databaseHelper.fetchAllFriends(widget.userId);
-    List<Event> friendEvents = [];
-    for (var friend in friends) {
-      final friendEventsList = await _firestoreService.fetchFriendEventsFromFirestore(widget.userId, email, friend.firebaseId!);
-      friendEvents.addAll(friendEventsList);
-    }
-
+  Future<void> _syncAndFetchEvents() async {
     setState(() {
-      _events = userEvents + friendEvents; // Combine both lists
-      _friends = friends;
+      _isLoading = true;
     });
+
+    try {
+      final email = await _databaseHelper.getEmailByUserId(widget.userId);
+      if (email == null) {
+        throw Exception("User email not found for ID ${widget.userId}");
+      }
+
+      // Sync personal events from Firestore to SQLite
+      await _firestoreService.syncEventsWithFirestore(widget.userId, email);
+
+      // Fetch all friends for this user
+      final friends = await _databaseHelper.fetchAllFriends(widget.userId);
+
+      // Sync friend events for each friend
+      for (var friend in friends) {
+        if (friend.firebaseId != null) {
+          await _firestoreService.syncFriendEventsWithFirestore(
+            widget.userId,
+            email,
+            friend.firebaseId!,
+          );
+        }
+      }
+
+      // Fetch all events from local database
+      final personalEvents = await _databaseHelper.fetchEventsForUser(widget.userId, friendId: null);
+      List<Event> friendEvents = [];
+      for (var friend in friends) {
+        final eventsForFriend = await _databaseHelper.fetchEventsByFriendId(friend.id!);
+        friendEvents.addAll(eventsForFriend);
+      }
+
+      setState(() {
+        _events = personalEvents + friendEvents;
+        _friends = friends;
+      });
+    } catch (e) {
+      print('Error syncing or fetching events: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _addOrEditEvent(Event? event) async {
     if (event == null) {
-      // Navigate to AddEventPage
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => AddEventPage(
             onAdd: (newEvent) async {
               final email = await _databaseHelper.getEmailByUserId(widget.userId);
-
               if (email == null) {
                 print("Error: No email found for the given user ID");
                 return;
               }
               if (newEvent.friendId != null) {
-                final friendfirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
-                // If the event is for a friend, add it to their event collection
-                await _firestoreService.addFriendEventToFirestore(newEvent, email, friendfirebaseId!);
+                final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
+                await _firestoreService.addFriendEventToFirestore(
+                  newEvent,
+                  email,
+                  friendFirebaseId!,
+                );
               } else {
-                // Otherwise, add it to the user's own event collection
                 await _firestoreService.addEventToFirestore(newEvent, email);
               }
               await _databaseHelper.insertEvent(newEvent);
 
-              _fetchData();
+              _syncAndFetchEvents();
             },
             userId: widget.userId,
-            friends: _friends, // Pass the list of friends
+            friends: _friends,
           ),
         ),
       );
 
       if (result == true) {
-        _fetchData();
+        _syncAndFetchEvents();
       }
     } else {
-      // Navigate to EventEditPage
       final result = await Navigator.push(
         context,
         MaterialPageRoute(
@@ -102,14 +125,14 @@ class _EventListPageState extends State<EventListPage> {
       );
 
       if (result == true) {
-        _fetchData();
+        _syncAndFetchEvents();
       }
     }
   }
 
   Future<void> _deleteEvent(int id) async {
     await _databaseHelper.deleteEvent(id);
-    _fetchData();
+    _syncAndFetchEvents();
   }
 
   void _confirmDelete(int id) {
@@ -141,7 +164,9 @@ class _EventListPageState extends State<EventListPage> {
       appBar: AppBar(
         title: const Text('Event List'),
       ),
-      body: _events.isEmpty
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _events.isEmpty
           ? const Center(child: Text('No events available.'))
           : ListView.builder(
         itemCount: _events.length,
@@ -152,13 +177,14 @@ class _EventListPageState extends State<EventListPage> {
             child: ListTile(
               title: Text(event.name),
               subtitle: Text(
-                  '${event.category} | ${event.status} | ${event.date.toLocal().toString().split(' ')[0]}'),
+                '${event.category} | ${event.status} | ${event.date.toLocal().toString().split(' ')[0]}',
+              ),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => GiftListPage(
-                      eventId: event.id!,
+                      eventId: event.id ?? 0,
                       eventName: event.name,
                     ),
                   ),

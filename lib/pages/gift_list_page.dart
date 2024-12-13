@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
 import '../models/gift.dart';
+import '../utils/firestore_service.dart';
 import 'gift_edit_page.dart';
 
 class GiftListPage extends StatefulWidget {
@@ -19,21 +20,82 @@ class GiftListPage extends StatefulWidget {
 
 class _GiftListPageState extends State<GiftListPage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final FirestoreService _firestoreService = FirestoreService();
   List<Gift> _gifts = [];
   String _sortColumn = 'name';
   bool _isAscending = true;
+  bool _isSyncing = false;
+
+  late String _userEmail;
+  late String _friendFirebaseId;
 
   @override
   void initState() {
     super.initState();
-    _fetchGifts();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    setState(() {
+      _isSyncing = true;
+    });
+
+    try {
+      print('Event ID passed: ${widget.eventId}');
+      // Fetch event details
+      final event = await _databaseHelper.fetchEventById(widget.eventId);
+      if (event == null) throw Exception("Event not found");
+
+      // Fetch user email
+      final userEmail = await _databaseHelper.getEmailByUserId(event.userId);
+      if (userEmail == null) throw Exception("User email not found");
+      _userEmail = userEmail;
+
+      // Fetch friend's Firebase ID
+      if (event.friendId != null) {
+        final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+        if (friendFirebaseId == null) throw Exception("Friend's Firebase ID not found");
+        _friendFirebaseId = friendFirebaseId;
+      } else {
+        _friendFirebaseId = ""; // Personal event
+      }
+
+      // Fetch gifts
+      await _fetchGifts();
+    } catch (e) {
+      print("Error initializing data: $e");
+    } finally {
+      setState(() {
+        _isSyncing = false;
+      });
+    }
   }
 
   Future<void> _fetchGifts() async {
-    final gifts = await _databaseHelper.fetchGiftsByEventId(widget.eventId);
-    setState(() {
-      _gifts = gifts;
-    });
+    try {
+      // Fetch gifts from Firestore
+      final firestoreGifts = await _firestoreService.fetchGiftsForFriendEvent(
+        _userEmail,
+        _friendFirebaseId,
+        widget.eventId.toString(),
+      );
+
+      // Sync Firestore gifts with local database
+      for (var gift in firestoreGifts) {
+        final localGift = await _databaseHelper.getGiftByFirebaseId(gift.giftFirebaseId!);
+        if (localGift == null) {
+          await _databaseHelper.insertGift(gift);
+        }
+      }
+
+      // Fetch gifts from local database
+      final localGifts = await _databaseHelper.fetchGiftsByEventId(widget.eventId);
+      setState(() {
+        _gifts = localGifts;
+      });
+    } catch (e) {
+      print('Error fetching gifts: $e');
+    }
   }
 
   void _sortGifts(String column) {
@@ -70,22 +132,38 @@ class _GiftListPageState extends State<GiftListPage> {
       MaterialPageRoute(
         builder: (context) => GiftEditPage(
           gift: gift,
-          eventId: widget.eventId, // Pass the eventId for gift association
+          eventId: widget.eventId,
         ),
       ),
     );
 
     if (result == true) {
-      _fetchGifts(); // Refresh the gift list after adding or editing
+      _fetchGifts();
     }
   }
 
-  Future<void> _deleteGift(int id) async {
-    await _databaseHelper.deleteGift(id);
-    _fetchGifts();
+  Future<void> _deleteGift(int id, String? firebaseId) async {
+    try {
+      // Delete from local database
+      await _databaseHelper.deleteGift(id);
+
+      // Delete from Firestore if firebaseId exists
+      if (firebaseId != null) {
+        await _firestoreService.deleteGiftFromFriendEvent(
+          _userEmail,
+          _friendFirebaseId,
+          widget.eventId.toString(),
+          firebaseId,
+        );
+      }
+
+      _fetchGifts();
+    } catch (e) {
+      print('Error deleting gift: $e');
+    }
   }
 
-  void _confirmDelete(int id) {
+  void _confirmDelete(int id, String? firebaseId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -99,7 +177,7 @@ class _GiftListPageState extends State<GiftListPage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _deleteGift(id);
+              _deleteGift(id, firebaseId);
             },
             child: const Text('Delete'),
           ),
@@ -129,15 +207,15 @@ class _GiftListPageState extends State<GiftListPage> {
         children: [
           IconButton(
             icon: const Icon(Icons.edit),
-            onPressed: () => _addOrEditGift(gift), // Navigate to GiftEditPage
+            onPressed: () => _addOrEditGift(gift),
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: () => _confirmDelete(gift.id!),
+            onPressed: () => _confirmDelete(gift.id!, gift.giftFirebaseId),
           ),
         ],
       ),
-      onTap: () => _addOrEditGift(gift), // Navigate to GiftEditPage
+      onTap: () => _addOrEditGift(gift),
     );
   }
 
@@ -146,6 +224,13 @@ class _GiftListPageState extends State<GiftListPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Gifts for ${widget.eventName}'),
+        actions: [
+          if (_isSyncing)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+        ],
       ),
       body: Column(
         children: [

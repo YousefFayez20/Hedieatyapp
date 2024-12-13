@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/event.dart';
+import '../models/gift.dart';
 import '../models/user.dart';
 import '../models/friend.dart';
 import '../utils/database_helper.dart';
@@ -140,14 +141,16 @@ class FirestoreService {
   }
   Future<void> syncEventsWithFirestore(int userId, String email) async {
     try {
+      print("Starting event sync from Firestore for email: $email and userId: $userId");
       // Fetch events from Firestore for the user
       var eventDocs = await _db.collection('users')
           .doc(email)
           .collection('events')
           .get();
-
+      print("Fetched ${eventDocs.docs.length} events from Firestore");
       for (var doc in eventDocs.docs) {
         var data = doc.data();
+        print("Processing event: ${data['name']}");
         Event event = Event(
           id: null, // SQLite will generate the ID
           name: data['name'],
@@ -160,22 +163,63 @@ class FirestoreService {
           status: data['status'],
 
         );
-
+        print("Converted Firestore event to Event object: ${event.toMap()}");
         // Sync event to SQLite if not already present
-        if (event.id != null) {
-          Event? localEvent = await _databaseHelper.fetchEventById(event.id!);
-          if (localEvent == null) {
-            await _databaseHelper.insertEvent(event);
-          }
+        List<Event> existingEvents = await _databaseHelper.fetchEventsByUserId(userId);
+        bool isDuplicate = existingEvents.any((e) => e.name == event.name && e.date == event.date);
+
+        if (!isDuplicate) {
+          print("Inserting event into SQLite: ${event.name}");
+          await _databaseHelper.insertEvent(event);
         } else {
-          print("Event ID is null");
+          print("Event already exists in SQLite: ${event.name}");
         }
       }
     } catch (e) {
-      print('Error syncing events from Firestore: $e');
+      print("Error syncing events from Firestore: $e");
     }
   }
+  Future<void> syncGiftsForFriendEventWithFirestore(
+      int userId, String email, String friendFirebaseId, String eventFirebaseId, int eventId) async {
+    try {
+      // Fetch gifts from Firestore for the friend's event
+      var giftDocs = await _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .get();
 
+      for (var doc in giftDocs.docs) {
+        var data = doc.data();
+        Gift gift = Gift(
+          id: null, // Firestore ID will be used as the local ID
+          name: data['name'],
+          price: data['price'].toDouble(),
+          description: data['description'],
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          status: data['status'],
+          category: data['category'],
+          eventId: eventId
+        );
+
+        // Sync gift to SQLite if not already present
+        Gift? localGift = await _databaseHelper.getGiftByFirebaseId(gift.giftFirebaseId!);
+        if (localGift == null) {
+          await _databaseHelper.insertGift(gift);
+          print('Gift inserted into SQLite: ${gift.name}');
+        } else {
+          print('Gift already exists in SQLite: ${gift.name}');
+        }
+      }
+    } catch (e) {
+      print('Error syncing gifts for friend\'s event from Firestore: $e');
+    }
+  }
   // Add event to Firestore
   Future<void> addEventToFirestore(Event event, String email) async {
     try {
@@ -197,15 +241,17 @@ class FirestoreService {
     }
   }
   Future<List<Event>> fetchEventsFromFirestore(int userId,email) async {
+    print("Fetching events from Firestore for email: $email");
     try {
       final querySnapshot = await _db
           .collection('users')
           .doc(email) // or use the user ID
           .collection('events')
           .get();
-
+      print("Fetched ${querySnapshot.docs.length} events from Firestore");
       List<Event> events = querySnapshot.docs.map((doc) {
         var data = doc.data();
+        print("Processing event: ${data['name']} (Firestore data: $data)");
         return Event(
           id: null, // SQLite will generate the ID
           name: data['name'],
@@ -259,6 +305,45 @@ class FirestoreService {
       return [];
     }
   }
+  Future<List<Gift>> fetchGiftsForFriendEvent(
+      String email, String friendFirebaseId, String eventFirebaseId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .get();
+
+      List<Gift> gifts = querySnapshot.docs.map((doc) {
+        var data = doc.data();
+        return Gift(
+          id: null, // Firestore gift ID
+          name: data['name'],
+          price: data['price'].toDouble(),
+          description: data['description'],
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          status: data['status'],
+          category: data['category'],
+            giftFirebaseId: doc.id
+
+        );
+      }).toList();
+
+      return gifts;
+    } catch (e) {
+      print("Error fetching gifts for friend's event: $e");
+      return [];
+    }
+  }
+
+
+
+
   Future<void> addFriendEventToFirestore(Event event, String email, String friendFirebaseId) async {
     try {
       await _db.collection('users')
@@ -280,7 +365,79 @@ class FirestoreService {
       print('Error adding friend event to Firestore: $e');
     }
   }
+  Future<void> addGiftToFriendEvent(
+      String email, String friendFirebaseId, String eventFirebaseId, Gift gift) async {
+    try {
+      print("Adding gift to Firestore...");
+      print("Firestore Path: users/$email/friends/$friendFirebaseId/events/$eventFirebaseId/gifts");
+      print("Gift Details: ${gift.toMap()}");
 
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .add({
+        'name': gift.name,
+        'price': gift.price,
+        'description': gift.description,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'status': gift.status,
+        'category': gift.category,
+      });
+
+      print('Gift added successfully to Firestore.');
+    } catch (e) {
+      print('Error adding gift to Firestore: $e');
+    }
+  }
+
+
+  Future<void> updateGiftStatus(
+      String email, String friendFirebaseId, String eventFirebaseId, String giftFirebaseId, String newStatus) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .doc(giftFirebaseId)
+          .update({
+        'status': newStatus,
+        'updatedAt': FieldValue.serverTimestamp(), // Update timestamp
+      });
+
+      print('Gift status updated');
+    } catch (e) {
+      print('Error updating gift status: $e');
+    }
+  }
+  Future<void> deleteGiftFromFriendEvent(
+      String email, String friendFirebaseId, String eventFirebaseId, String giftFirebaseId) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('friends')
+          .doc(friendFirebaseId)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .doc(giftFirebaseId)
+          .delete();
+
+      print('Gift deleted from friend\'s event');
+    } catch (e) {
+      print('Error deleting gift from friend\'s event: $e');
+    }
+  }
 
   Future<void> syncFriendEventsWithFirestore(int userId, String? email, String friendFirebaseId) async {
     if (email == null) {
@@ -293,10 +450,10 @@ class FirestoreService {
       var eventDocs = await _db.collection('users')
           .doc(email)
           .collection('friends')
-          .doc(friendFirebaseId) // Friend's Firebase ID
-          .collection('events') // Friend's events collection
+          .doc(friendFirebaseId)
+          .collection('events')
           .get();
-
+      print("Fetched ${eventDocs.docs.length} events for friend");
       for (var doc in eventDocs.docs) {
         var data = doc.data();
         Event event = Event(
@@ -307,18 +464,24 @@ class FirestoreService {
           category: data['category'],
           date: (data['date'] as Timestamp).toDate(),
           userId: userId,
-          firebaseId: friendFirebaseId, // Pass Firebase ID
+          friendId: await _databaseHelper.getFriendIdByFirebaseId(friendFirebaseId),
+          // Assuming friendId will be resolved by FirebaseId
+          firebaseId: doc.id, // Use Firestore doc ID as Firebase ID
           status: data['status'],
         );
 
+        // Sync event to SQLite
+        print("Converted Firestore event to Event object: ${event.toMap()}");
+
         // Sync event to SQLite if not already present
-        if (event.id != null) {
-          Event? localEvent = await _databaseHelper.fetchEventById(event.id!);
-          if (localEvent == null) {
-            await _databaseHelper.insertEvent(event);
-          }
+        List<Event> existingEvents = await _databaseHelper.fetchEventsByFriendId(event.friendId!);
+        bool isDuplicate = existingEvents.any((e) => e.name == event.name && e.date == event.date);
+
+        if (!isDuplicate) {
+          print("Inserting friend event into SQLite: ${event.name}");
+          await _databaseHelper.insertEvent(event);
         } else {
-          print("Event ID is null");
+          print("Friend event already exists in SQLite: ${event.name}");
         }
       }
     } catch (e) {
