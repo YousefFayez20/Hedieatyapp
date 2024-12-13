@@ -676,19 +676,33 @@ class FirestoreService {
       String email,
       String eventFirebaseId,
       String giftFirebaseId,
-      Gift gift,
-      ) async {
+      Gift gift, {
+        String? friendFirebaseId,
+      }) async {
     try {
-      print("Updating gift details in Firestore: $giftFirebaseId");
+      DocumentReference<Map<String, dynamic>> giftDoc;
 
-      await _db
-          .collection('users')
-          .doc(email)
-          .collection('events')
-          .doc(eventFirebaseId)
-          .collection('gifts')
-          .doc(giftFirebaseId)
-          .update({
+      if (friendFirebaseId != null) {
+        giftDoc = _db
+            .collection('users')
+            .doc(email)
+            .collection('friends')
+            .doc(friendFirebaseId)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts')
+            .doc(giftFirebaseId);
+      } else {
+        giftDoc = _db
+            .collection('users')
+            .doc(email)
+            .collection('events')
+            .doc(eventFirebaseId)
+            .collection('gifts')
+            .doc(giftFirebaseId);
+      }
+
+      await giftDoc.update({
         'name': gift.name,
         'description': gift.description,
         'category': gift.category,

@@ -127,30 +127,51 @@ class _GiftEditPageState extends State<GiftEditPage> {
       final email = await _databaseHelper.getEmailByUserId(event.userId);
       if (email == null) throw Exception("User email not found");
 
-      if (event.friendId != null) {
-        // Adding gift to a friend's event
-        final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
-        if (friendFirebaseId == null) throw Exception("Friend Firebase ID is missing");
+      if (gift.giftFirebaseId != null) {
+        // Update existing gift
+        if (event.friendId != null) {
+          final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+          if (friendFirebaseId == null) throw Exception("Friend Firebase ID is missing");
 
-        final firebaseGiftId = await _firestoreService.addGiftToFriendEvent(
-          email,
-          friendFirebaseId,
-          _eventFirebaseId!,
-          gift,
-        );
-        final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
-        await _databaseHelper.insertGift(insertedGift);
-        print("Gift added successfully to friend's event: ${insertedGift.toMap()}");
+          await _firestoreService.updateGiftDetails(
+            email,
+            _eventFirebaseId!,
+            gift.giftFirebaseId!,
+            gift,
+            friendFirebaseId: friendFirebaseId,
+          );
+        } else {
+          await _firestoreService.updateGiftDetails(
+            email,
+            _eventFirebaseId!,
+            gift.giftFirebaseId!,
+            gift,
+          );
+        }
+        await _databaseHelper.updateGift(gift);
+        print("Gift updated successfully.");
       } else {
-        // Adding gift to a personal event
-        final firebaseGiftId = await _firestoreService.addGiftToPersonalEvent(
-          email,
-          _eventFirebaseId!,
-          gift,
-        );
-        final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
-        await _databaseHelper.insertGift(insertedGift);
-        print("Gift added successfully to personal event: ${insertedGift.toMap()}");
+        // Add new gift
+        String firebaseGiftId;
+        if (event.friendId != null) {
+          final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+          firebaseGiftId = await _firestoreService.addGiftToFriendEvent(
+            email,
+            friendFirebaseId!,
+            _eventFirebaseId!,
+            gift,
+          );
+        } else {
+          firebaseGiftId = await _firestoreService.addGiftToPersonalEvent(
+            email,
+            _eventFirebaseId!,
+            gift,
+          );
+        }
+
+        final newGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
+        await _databaseHelper.insertGift(newGift);
+        print("Gift added successfully.");
       }
 
       Navigator.pop(context, true);

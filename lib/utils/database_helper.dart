@@ -328,9 +328,14 @@ class DatabaseHelper {
   // ------------------- Gift-Related Functions -------------------
   Future<void> insertGift(Gift gift) async {
     final db = await database;
-    await db.insert('gifts', gift.toMap());
-    print("Gift inserted: ${gift.name}");
+    await db.insert(
+      'gifts',
+      gift.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace, // Replace existing row if conflict occurs
+    );
+    print("Gift inserted or replaced: ${gift.name}");
   }
+
 
 
   Future<List<Gift>> fetchGiftsByEventId(int eventId) async {
