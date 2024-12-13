@@ -100,7 +100,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
     }
   }
   Future<void> _saveGift() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_isPledged && !_formKey.currentState!.validate()) return; // Validate only if not pledged
 
     _formKey.currentState!.save();
 
@@ -114,17 +114,18 @@ class _GiftEditPageState extends State<GiftEditPage> {
 
     final gift = Gift(
       id: widget.gift?.id,
-      name: _name,
-      description: _description,
+      name: _name.isEmpty ? widget.gift?.name ?? '' : _name, // Retain name if empty
+      description: _description.isEmpty ? widget.gift?.description ?? '' : _description, // Retain description if empty
       category: _category,
-      price: _price,
+      price: _price > 0 ? _price : widget.gift?.price ?? 0, // Retain price if empty
       status: _status,
       eventId: widget.eventId,
-      imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '',
+      imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '', // Retain image if unchanged
       createdAt: widget.gift?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       giftFirebaseId: widget.gift?.giftFirebaseId,
     );
+
 
     try {
       if (widget.gift == null) {
@@ -139,16 +140,34 @@ class _GiftEditPageState extends State<GiftEditPage> {
         final insertedGift = gift.copyWith(giftFirebaseId: firebaseGiftId);
         await _databaseHelper.insertGift(insertedGift);
       } else {
-        // Updating an existing gift
+        // Updating an existing gift in Firestore
+        if (gift.giftFirebaseId != null) {
+          await _firestoreService.updateGiftStatus(
+            _userEmail!,
+            _eventFirebaseId!,
+            gift.giftFirebaseId!,
+            _status,
+          );
+          await _firestoreService.updateGiftDetails(
+            _userEmail!,
+            _eventFirebaseId!,
+            gift.giftFirebaseId!,
+            gift,
+          );
+        }
+
+        // Update the gift locally
         await _databaseHelper.updateGift(gift);
       }
+
       Navigator.pop(context, true);
     } catch (e) {
       print("Error saving gift: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save gift. Please try again.')),
+      );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +189,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
                     radius: 50,
                     backgroundImage: _imageFile != null
                         ? FileImage(_imageFile!)
-                        : const AssetImage('assets/default_image.png') as ImageProvider,
+                        : AssetImage('assets/default_image.png') as ImageProvider,
                     child: _imageFile == null
                         ? const Icon(Icons.camera_alt, size: 30, color: Colors.white)
                         : null,
@@ -183,10 +202,14 @@ class _GiftEditPageState extends State<GiftEditPage> {
               TextFormField(
                 initialValue: _name,
                 decoration: const InputDecoration(labelText: 'Gift Name *'),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter a name.' : null,
+                validator: (value) => _isPledged || (value != null && value.isNotEmpty)
+                    ? null
+                    : 'Please enter a name.',
                 onSaved: (value) => _name = value ?? '',
-                enabled: !_isPledged,
+                enabled: !_isPledged, // Disable editing for pledged gifts
               ),
+
+
               const SizedBox(height: 16),
 
               // Gift Description
@@ -195,8 +218,9 @@ class _GiftEditPageState extends State<GiftEditPage> {
                 decoration: const InputDecoration(labelText: 'Description'),
                 maxLines: 3,
                 onSaved: (value) => _description = value ?? '',
-                enabled: !_isPledged,
+                enabled: !_isPledged, // Disable editing for pledged gifts
               ),
+
               const SizedBox(height: 16),
 
               // Gift Category
@@ -217,12 +241,15 @@ class _GiftEditPageState extends State<GiftEditPage> {
                 decoration: const InputDecoration(labelText: 'Price *'),
                 keyboardType: TextInputType.number,
                 validator: (value) {
+                  if (_isPledged) return null; // Skip validation for pledged gifts
                   final parsed = double.tryParse(value ?? '');
                   if (parsed == null || parsed <= 0) return 'Please enter a valid price.';
                   return null;
                 },
-                onSaved: (value) => _price = double.parse(value!),
+                onSaved: (value) => _price = double.tryParse(value ?? '0') ?? 0,
+                enabled: !_isPledged, // Disable editing for pledged gifts
               ),
+
               const SizedBox(height: 16),
 
               // Gift Status
@@ -247,16 +274,17 @@ class _GiftEditPageState extends State<GiftEditPage> {
                   ),
                 ],
                 onChanged: (value) {
-                  if (_isPledged) return; // Prevent changing if pledged
+                  if (_isPledged) return; // Prevent changing status if pledged
                   setState(() {
                     _status = value!;
                     if (_status == 'Pledged') {
-                      _isPledged = true; // Lock fields when pledged
+                      _isPledged = true; // Lock fields if pledged
                     }
                   });
                 },
                 onSaved: (value) => _status = value!,
               ),
+
               const SizedBox(height: 32),
 
               // Save Button
@@ -264,6 +292,8 @@ class _GiftEditPageState extends State<GiftEditPage> {
                 onPressed: _saveGift,
                 child: Text(widget.gift == null ? 'Add Gift' : 'Save Changes'),
               ),
+
+
             ],
           ),
         ),

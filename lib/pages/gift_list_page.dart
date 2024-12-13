@@ -170,37 +170,75 @@ class _GiftListPageState extends State<GiftListPage> {
       _syncGiftsFromFirestore();
     }
   }
-
+  void _confirmDelete(int id, String? firebaseId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Gift'),
+        content: const Text('Are you sure you want to delete this gift?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteGift(id, firebaseId);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
   Future<void> _deleteGift(int id, String? firebaseId) async {
     try {
-      // Delete from local database
-      await _databaseHelper.deleteGift(id);
+      print("Starting deletion process for gift with local ID: $id, Firebase ID: $firebaseId");
 
-      // Delete from Firestore if firebaseId exists
+      // Delete from the local database
+      await _databaseHelper.deleteGift(id);
+      print("Successfully deleted gift locally with ID: $id");
+
       if (firebaseId != null) {
         final event = await _databaseHelper.fetchEventById(widget.eventId);
-        if (event == null) return;
+        if (event == null) throw Exception("Event not found for local ID: ${widget.eventId}");
 
         final email = await _databaseHelper.getEmailByUserId(event.userId);
-        final friendFirebaseId = event.friendId != null
-            ? await _databaseHelper.getFirebaseIdByFriendId(event.friendId!)
-            : null;
+        if (email == null) throw Exception("User email not found for user ID: ${event.userId}");
 
-        if (email != null) {
+        if (event.friendId != null) {
+          final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+          if (friendFirebaseId == null) throw Exception("Friend Firebase ID not found for friend ID: ${event.friendId}");
+
+          print("Attempting to delete gift from Firestore for friend's event...");
           await _firestoreService.deleteGiftFromFriendEvent(
             email,
-            friendFirebaseId ?? "",
+            friendFirebaseId,
+            event.firebaseId!,
+            firebaseId,
+          );
+        } else {
+          print("Attempting to delete gift from Firestore for personal event...");
+          await _firestoreService.deleteGiftFromPersonalEvent(
+            email,
             event.firebaseId!,
             firebaseId,
           );
         }
+
+        print("Successfully deleted gift from Firestore with Firebase ID: $firebaseId");
       }
 
+      // Refresh the UI
+      print("Refreshing gifts list...");
       _syncGiftsFromFirestore();
     } catch (e) {
       print("Error deleting gift: $e");
     }
   }
+
+
   Color _getGiftStatusColor(String status) {
     switch (status) {
       case 'Pledged':
@@ -230,21 +268,29 @@ class _GiftListPageState extends State<GiftListPage> {
               : Colors.black87,
         ),
       ),
-      trailing: gift.status == 'Pledged'
-          ? null // Disable status change for Pledged
-          : DropdownButton<String>(
-        value: gift.status,
-        items: ['Available', 'Pledged', 'Purchased']
-            .map((status) => DropdownMenuItem(value: status, child: Text(status)))
-            .toList(),
-        onChanged: (newStatus) async {
-          if (newStatus != null && newStatus != gift.status) {
-            await _updateGiftStatus(gift, newStatus);
-          }
-        },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: gift.status == 'Pledged'
+                ? null // Disable edit for pledged gifts
+                : () => _addOrEditGift(gift),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: gift.status == 'Pledged'
+                ? null // Disable delete for pledged gifts
+                : () => _confirmDelete(gift.id!, gift.giftFirebaseId),
+          ),
+        ],
       ),
+      onTap: gift.status == 'Pledged'
+          ? null // Disable navigation for pledged gifts
+          : () => _addOrEditGift(gift),
     );
   }
+
 
 
   Future<void> _updateGiftStatus(Gift gift, String newStatus) async {

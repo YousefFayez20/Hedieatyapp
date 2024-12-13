@@ -606,5 +606,56 @@ class FirestoreService {
       }).toList();
     });
   }
+  Future<void> deleteGiftFromPersonalEvent(String email, String eventFirebaseId, String giftFirebaseId) async {
+    try {
+      print("Deleting gift from Firestore: User Email: $email, Event Firebase ID: $eventFirebaseId, Gift Firebase ID: $giftFirebaseId");
+
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .doc(giftFirebaseId)
+          .delete();
+
+      print("Gift deleted successfully from Firestore for personal event.");
+    } catch (e) {
+      print("Error deleting gift from Firestore for personal event: $e");
+      throw e;
+    }
+  }
+  Future<void> updateGiftDetails(
+      String email,
+      String eventFirebaseId,
+      String giftFirebaseId,
+      Gift gift,
+      ) async {
+    try {
+      print("Updating gift details in Firestore: $giftFirebaseId");
+
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(eventFirebaseId)
+          .collection('gifts')
+          .doc(giftFirebaseId)
+          .update({
+        'name': gift.name,
+        'description': gift.description,
+        'category': gift.category,
+        'price': gift.price,
+        'status': gift.status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      print("Gift details updated successfully in Firestore.");
+    } catch (e) {
+      print("Error updating gift details in Firestore: $e");
+      throw e;
+    }
+  }
+
 
 }
