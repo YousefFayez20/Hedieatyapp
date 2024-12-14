@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'event_list_page.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
+import 'notification_center_page.dart'; // Import the Notification Center Page
 
 class MainNavigation extends StatefulWidget {
-  final int userId; // Add a required userId parameter
+  final int userId;
 
   const MainNavigation({Key? key, required this.userId}) : super(key: key);
 
@@ -15,16 +16,16 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  late final List<Widget> _pages; // Declare pages dynamically based on userId
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
     _pages = [
-      HomePage(userId: widget.userId),         // Pass userId to Home Page
-      EventListPage(userId: widget.userId),    // Pass userId to Event List Page
-      UserProfilePage(userId: widget.userId),  // Pass userId to Profile Page
-      Placeholder(),                           // Replace GiftListPage or add functionality
+      HomePage(userId: widget.userId),          // Home Page
+      EventListPage(userId: widget.userId),     // Events Page
+      NotificationCenterPage(userId: widget.userId), // Notifications Page
+      UserProfilePage(userId: widget.userId),   // Profile Page
     ];
   }
 
@@ -44,7 +45,7 @@ class _MainNavigationState extends State<MainNavigation> {
         unselectedItemColor: Colors.grey,
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
@@ -54,12 +55,12 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Events',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+            icon: Icon(Icons.notifications),
+            label: 'Notifications', // Updated to "Notifications"
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.card_giftcard),
-            label: 'Gifts',
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

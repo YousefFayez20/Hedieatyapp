@@ -717,6 +717,19 @@ class FirestoreService {
       throw e;
     }
   }
+  Future<void> addNotification(String email, String message, String actionType) async {
+    try {
+      await _db.collection('users').doc(email).collection('notifications').add({
+        'actionType': actionType,
+        'message': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
+      print('Notification added successfully for $email.');
+    } catch (e) {
+      print('Error adding notification: $e');
+    }
+  }
 
 
 }

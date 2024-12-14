@@ -173,6 +173,15 @@ class _GiftEditPageState extends State<GiftEditPage> {
         await _databaseHelper.insertGift(newGift);
         print("Gift added successfully.");
       }
+      if (_status == 'Pledged') {
+        await _firestoreService.addNotification(
+          email,
+          'You pledged to buy ${gift.name} for ${event.name}',
+          'pledge',
+        );
+        print("Notification added for pledged gift.");
+      }
+
 
       Navigator.pop(context, true);
     } catch (e) {
