@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:trial15/pages/event_edit_page.dart';
 import '../models/friend.dart';
+import '../utils/fade_page_transition.dart';
 import 'add_friend_dialog.dart';
 import 'friend_gift_list_page.dart';
 import 'add_event_page.dart';
@@ -142,28 +143,27 @@ class _HomePageState extends State<HomePage> {
     if (event == null) {
       final result = await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => AddEventPage(
-            onAdd: (newEvent) async {
-              if (_userEmail == null) return;
-              if (newEvent.friendId != null) {
-                final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
-                await _firestoreService.addFriendEventToFirestore(
-                  newEvent,
-                  _userEmail!,
-                  friendFirebaseId!,
-                );
-              } else {
-                await _firestoreService.addEventToFirestore(newEvent, _userEmail!);
-              }
-              await _databaseHelper.insertEvent(newEvent);
-              await _syncAndFetchEvents();
-            },
-            userId: widget.userId,
-            friends: friends,
-          ),
-        ),
+        FadePageTransition(page: AddEventPage(
+          onAdd: (newEvent) async {
+            if (_userEmail == null) return;
+            if (newEvent.friendId != null) {
+              final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
+              await _firestoreService.addFriendEventToFirestore(
+                newEvent,
+                _userEmail!,
+                friendFirebaseId!,
+              );
+            } else {
+              await _firestoreService.addEventToFirestore(newEvent, _userEmail!);
+            }
+            await _databaseHelper.insertEvent(newEvent);
+            await _syncAndFetchEvents();
+          },
+          userId: widget.userId,
+          friends: friends,
+        )),
       );
+
 
       if (result == true) {
         await _syncAndFetchEvents();
@@ -190,8 +190,8 @@ class _HomePageState extends State<HomePage> {
     }
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => FriendGiftListPage(friendId: friend.id!),
+      FadePageTransition(
+        page: FriendGiftListPage(friendId: friend.id!),
       ),
     );
   }

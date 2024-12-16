@@ -36,34 +36,40 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_currentIndex],
+      body: Stack(
+        children: List.generate(
+          _pages.length,
+              (index) => Offstage(
+            offstage: _currentIndex != index,
+            child: TickerMode(
+              enabled: _currentIndex == index,
+              child: FadeTransition(
+                opacity: _currentIndex == index ? AlwaysStoppedAnimation(1.0) : AlwaysStoppedAnimation(0.0),
+                child: _pages[index],
+              ),
+            ),
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.green,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
+        selectedItemColor: Colors.green, // Set the same color for selected items
+        unselectedItemColor: Colors.grey, // Set the color for unselected items
+        selectedIconTheme: IconThemeData(color: Colors.green), // Selected icon color
+        unselectedIconTheme: IconThemeData(color: Colors.grey), // Unselected icon color
+        showUnselectedLabels: true,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Events',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications', // Updated to "Notifications"
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.event), label: 'Events'),
+          BottomNavigationBarItem(icon: Icon(Icons.notifications), label: 'Notifications'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
   }
+
 }
