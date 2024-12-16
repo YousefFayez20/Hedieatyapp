@@ -29,11 +29,13 @@ class _EventListPageState extends State<EventListPage> {
     super.initState();
     _syncAndFetchEvents();
   }
-
+  bool _isSyncing = false;
   Future<void> _syncAndFetchEvents() async {
     setState(() {
       _isLoading = true;
     });
+    if (_isSyncing) return;
+    _isSyncing = true;
 
     try {
       final email = await _databaseHelper.getEmailByUserId(widget.userId);
@@ -75,6 +77,7 @@ class _EventListPageState extends State<EventListPage> {
     } finally {
       setState(() {
         _isLoading = false;
+        _isSyncing = false;
       });
     }
   }
@@ -117,11 +120,13 @@ class _EventListPageState extends State<EventListPage> {
                   email,
                   friendFirebaseId!,
                 );
+
               } else {
                 await _firestoreService.addEventToFirestore(newEvent, email);
               }
+              print("Attempting to insert event: ${newEvent.name}");
               await _databaseHelper.insertEvent(newEvent);
-
+              print("Event inserted: ${newEvent.name}");
               _syncAndFetchEvents();
             },
             userId: widget.userId,

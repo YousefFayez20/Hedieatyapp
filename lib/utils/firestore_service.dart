@@ -167,7 +167,10 @@ class FirestoreService {
         print("Converted Firestore event to Event object: ${event.toMap()}");
         // Sync event to SQLite if not already present
         List<Event> existingEvents = await _databaseHelper.fetchEventsByUserId(userId);
-        bool isDuplicate = existingEvents.any((e) => e.name == event.name && e.date == event.date);
+        bool isDuplicate = existingEvents.any((e) =>
+        e.firebaseId == event.firebaseId ||
+            (e.name == event.name ));
+
 
         if (!isDuplicate) {
           print("Inserting event into SQLite: ${event.name}");
@@ -237,6 +240,8 @@ class FirestoreService {
         'friend_id': event.friendId,
         'status': event.status,
       });
+
+      await DatabaseHelper().updateEvent(event);
       print('Event added to Firestore');
     } catch (e) {
       print('Error adding event to Firestore: $e');
@@ -542,7 +547,9 @@ class FirestoreService {
 
         // Sync event to SQLite if not already present
         List<Event> existingEvents = await _databaseHelper.fetchEventsByFriendId(event.friendId!);
-        bool isDuplicate = existingEvents.any((e) => e.name == event.name && e.date == event.date);
+        bool isDuplicate = existingEvents.any((e) =>
+        e.firebaseId == event.firebaseId ||
+            (e.name == event.name));
 
         if (!isDuplicate) {
           print("Inserting friend event into SQLite: ${event.name}");

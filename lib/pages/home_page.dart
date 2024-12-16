@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:trial15/pages/event_edit_page.dart';
 import '../models/friend.dart';
+import '../utils/bounce_button.dart';
 import '../utils/fade_page_transition.dart';
 import 'add_friend_dialog.dart';
 import 'friend_gift_list_page.dart';
@@ -344,22 +345,27 @@ class _HomePageState extends State<HomePage> {
           // Create Event Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton(
-              onPressed:  () =>_addOrEditEvent(null),
-              child: const Text(
-                'Create Your Own Event/List',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Colors.green,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
+            child: BounceButton(
+              onTap: () => _addOrEditEvent(null),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.green,
                   borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                height: 50,
+                child: const Text(
+                  'Create Your Own Event/List',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
           ),
+
           // Friends List
           Expanded(
             child: filteredFriends.isEmpty
