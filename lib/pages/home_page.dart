@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   }
   Future<void> _initializeEmail() async {
     _userEmail = await _databaseHelper.getEmailByUserId(widget.userId);
+    _setupNotificationListener(_userEmail!);
     setState(() {}); // Update the UI after fetching the email
   }
   // Fetch all friends and calculate the total number of events dynamically
@@ -67,7 +68,27 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
-
+  void _setupNotificationListener(String email) {
+    _firestoreService.listenForNotifications(email, (message) {
+      // Show a SnackBar for in-app notification
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificationCenterPage(userId: widget.userId),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
   // Sync the friends data with Firestore and update the local SQLite database
   Future<void> _syncFriendsWithFirestore() async {
     try {

@@ -6,6 +6,7 @@ import '../utils/firestore_service.dart';
 import 'event_edit_page.dart';
 import 'add_event_page.dart';
 import 'gift_list_page.dart';
+import 'notification_center_page.dart';
 
 class EventListPage extends StatefulWidget {
   final int userId;
@@ -45,7 +46,7 @@ class _EventListPageState extends State<EventListPage> {
 
       // Fetch all friends for this user
       final friends = await _databaseHelper.fetchAllFriends(widget.userId);
-
+      _setupNotificationListener(email);
       // Sync friend events for each friend
       for (var friend in friends) {
         if (friend.firebaseId != null) {
@@ -77,7 +78,26 @@ class _EventListPageState extends State<EventListPage> {
       });
     }
   }
-
+  void _setupNotificationListener(String email) {
+    _firestoreService.listenForNotifications(email, (message) async {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificationCenterPage(userId:  widget.userId),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
   Future<void> _addOrEditEvent(Event? event) async {
     if (event == null) {
       final result = await Navigator.push(

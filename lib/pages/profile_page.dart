@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../utils/database_helper.dart';
 import '../models/user.dart';
+import '../utils/firestore_service.dart';
 import 'gift_list_page.dart';  // Page for showing user's created event's gifts.
-import 'my_pledged_gifts_page.dart';  // Page for showing the pledged gifts.
+import 'my_pledged_gifts_page.dart';
+import 'notification_center_page.dart';  // Page for showing the pledged gifts.
 
 class UserProfilePage extends StatefulWidget {
   final int userId; // Accept userId to fetch and update profile data
@@ -22,7 +24,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   bool notificationsEnabled = true; // Placeholder for notification setting
   User? _user; // Store the fetched user object
   List<Map<String, dynamic>> _userEvents = []; // To store personal events only
-
+  final FirestoreService _firestoreService = FirestoreService();
   @override
   void initState() {
     super.initState();
@@ -33,6 +35,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   // Load user profile information
   Future<void> _loadUserProfile() async {
     final user = await _databaseHelper.getUserById(widget.userId);
+    _setupNotificationListener(user!.email);
     if (user != null) {
       setState(() {
         _user = user;
@@ -42,7 +45,26 @@ class _UserProfilePageState extends State<UserProfilePage> {
       });
     }
   }
-
+  void _setupNotificationListener(String email) {
+    _firestoreService.listenForNotifications(email, (message) async {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificationCenterPage(userId:  widget.userId),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
   // Load personal events created by the user (events where friend_id is null)
   Future<void> _loadUserEvents() async {
     final events = await _databaseHelper.fetchPersonalEvents(widget.userId);

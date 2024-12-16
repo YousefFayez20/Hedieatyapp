@@ -3,6 +3,7 @@ import '../utils/database_helper.dart';
 import '../models/gift.dart';
 import '../utils/firestore_service.dart';
 import 'gift_edit_page.dart';
+import 'notification_center_page.dart';
 
 class GiftListPage extends StatefulWidget {
   final int eventId;
@@ -31,7 +32,28 @@ class _GiftListPageState extends State<GiftListPage> {
     super.initState();
     _syncGiftsFromFirestore();
   }
-
+  void _setupNotificationListener(String email) {
+    _firestoreService.listenForNotifications(email, (message) async {
+      // Show a SnackBar for in-app notification
+      final event = await _databaseHelper.fetchEventById(widget.eventId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NotificationCenterPage( userId: event!.userId),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+  }
   Future<void> _syncGiftsFromFirestore() async {
     setState(() {
       _isSyncing = true;
@@ -47,7 +69,7 @@ class _GiftListPageState extends State<GiftListPage> {
       if (email == null) {
         throw Exception("User email not found for the event.");
       }
-
+      _setupNotificationListener(email);
       final eventFirebaseId = event.firebaseId;
       if (eventFirebaseId == null || eventFirebaseId.isEmpty) {
         throw Exception("Firebase ID for the event is missing.");

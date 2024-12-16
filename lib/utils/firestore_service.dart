@@ -730,6 +730,22 @@ class FirestoreService {
       print('Error adding notification: $e');
     }
   }
+  void listenForNotifications(String email, Function(String message) onNotification) {
+    _db.collection('users')
+        .doc(email)
+        .collection('notifications')
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final notification = change.doc.data();
+          if (!(notification?['isRead'] as bool)) {
+            onNotification(notification?['message']);
+          }
+        }
+      }
+    });
+  }
 
 
 }
