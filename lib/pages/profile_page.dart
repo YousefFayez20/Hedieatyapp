@@ -166,12 +166,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              child: ListView.builder(
-                itemCount: _userEvents.length,
-                itemBuilder: (context, index) {
-                  final event = _userEvents[index];
-                  return _buildEventTile(event);
-                },
+              child: RefreshIndicator(
+                onRefresh: _loadUserEvents, // Triggers a reload of user events
+                child: ListView.builder(
+                  itemCount: _userEvents.length,
+                  itemBuilder: (context, index) {
+                    final event = _userEvents[index];
+                    return _buildEventTile(event);
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 20),

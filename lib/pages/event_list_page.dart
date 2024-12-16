@@ -29,6 +29,7 @@ class _EventListPageState extends State<EventListPage> {
     super.initState();
     _syncAndFetchEvents();
   }
+
   bool _isSyncing = false;
   Future<void> _syncAndFetchEvents() async {
     setState(() {
@@ -81,6 +82,11 @@ class _EventListPageState extends State<EventListPage> {
       });
     }
   }
+  Future<void> _onRefresh() async {
+    // Logic to refresh the events (fetch new data from Firestore or local DB)
+    await _syncAndFetchEvents();
+  }
+
   void _setupNotificationListener(String email) {
     _firestoreService.listenForNotifications(email, (message) async {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -189,48 +195,61 @@ class _EventListPageState extends State<EventListPage> {
       appBar: AppBar(
         title: const Text('Event List'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _events.isEmpty
-          ? const Center(child: Text('No events available.'))
-          : ListView.builder(
-        itemCount: _events.length,
-        itemBuilder: (context, index) {
-          final event = _events[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: ListTile(
-              title: Text(event.name),
-              subtitle: Text(
-                '${event.category} | ${event.status} | ${event.date.toLocal().toString().split(' ')[0]}',
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => GiftListPage(
-                      eventId: event.id ?? 0,
-                      eventName: event.name,
-                    ),
-                  ),
-                );
-              },
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _addOrEditEvent(event),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete),
-                    onPressed: () => _confirmDelete(event.id!),
-                  ),
-                ],
+      body: RefreshIndicator(
+        onRefresh: _syncAndFetchEvents, // Trigger the refresh logic
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _events.isEmpty
+            ? ListView(
+          // Ensure it's scrollable to trigger RefreshIndicator
+          children: const [
+            SizedBox(
+              height: 400, // Placeholder height for empty state
+              child: Center(
+                child: Text('No events available.'),
               ),
             ),
-          );
-        },
+          ],
+        )
+            : ListView.builder(
+          itemCount: _events.length,
+          itemBuilder: (context, index) {
+            final event = _events[index];
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: ListTile(
+                title: Text(event.name),
+                subtitle: Text(
+                  '${event.category} | ${event.status} | ${event.date.toLocal().toString().split(' ')[0]}',
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GiftListPage(
+                        eventId: event.id ?? 0,
+                        eventName: event.name,
+                      ),
+                    ),
+                  );
+                },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _addOrEditEvent(event),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _confirmDelete(event.id!),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addOrEditEvent(null),
@@ -239,4 +258,5 @@ class _EventListPageState extends State<EventListPage> {
       ),
     );
   }
+
 }
