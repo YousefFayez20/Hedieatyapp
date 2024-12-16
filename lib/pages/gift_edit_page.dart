@@ -295,6 +295,10 @@ class _GiftEditPageState extends State<GiftEditPage> {
                     value: 'Pledged',
                     child: Text('Pledged'),
                   ),
+                  const DropdownMenuItem(
+                    value: 'Purchased',
+                    child: Text('Purchased'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (_isPledged) return; // Prevent changing status if pledged

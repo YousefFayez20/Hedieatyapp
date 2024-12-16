@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:trial15/pages/event_edit_page.dart';
 import '../models/friend.dart';
 import 'add_friend_dialog.dart';
 import 'friend_gift_list_page.dart';
@@ -20,23 +21,28 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
-  final FirestoreService _firestoreService = FirestoreService(); // Firestore service instance
+  final FirestoreService _firestoreService =
+      FirestoreService(); // Firestore service instance
 
   List<Friend> friends = [];
   String searchQuery = '';
   String sortOption = 'Total Events';
   String? _userEmail;
+  bool _isLoading = true;
+  List<Event> _events = [];
   @override
   void initState() {
     super.initState();
     _fetchFriends();
     _initializeEmail();
   }
+
   Future<void> _initializeEmail() async {
     _userEmail = await _databaseHelper.getEmailByUserId(widget.userId);
     _setupNotificationListener(_userEmail!);
     setState(() {}); // Update the UI after fetching the email
   }
+
   // Fetch all friends and calculate the total number of events dynamically
   Future<void> _fetchFriends() async {
     try {
@@ -44,13 +50,13 @@ class _HomePageState extends State<HomePage> {
       await _syncFriendsWithFirestore();
 
       // After syncing, fetch all friends from the local database (SQLite)
-      final fetchedFriends = await _databaseHelper.fetchAllFriends(
-          widget.userId);
+      final fetchedFriends =
+          await _databaseHelper.fetchAllFriends(widget.userId);
 
       // For each friend, fetch the total count of events
       for (var friend in fetchedFriends) {
-        final eventCount = await _databaseHelper.fetchTotalEventCountByFriendId(
-            friend.id!);
+        final eventCount =
+            await _databaseHelper.fetchTotalEventCountByFriendId(friend.id!);
         friend.upcomingEvents =
             eventCount; // Use the same field for total events
       }
@@ -59,8 +65,8 @@ class _HomePageState extends State<HomePage> {
         friends = fetchedFriends;
       });
 
-      print('Fetched friends: ${friends.map((friend) => friend.toMap())
-          .toList()}');
+      print(
+          'Fetched friends: ${friends.map((friend) => friend.toMap()).toList()}');
     } catch (error) {
       print('Error fetching friends: $error');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +74,7 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
+
   void _setupNotificationListener(String email) {
     _firestoreService.listenForNotifications(email, (message) {
       // Show a SnackBar for in-app notification
@@ -80,7 +87,8 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => NotificationCenterPage(userId: widget.userId),
+                  builder: (context) =>
+                      NotificationCenterPage(userId: widget.userId),
                 ),
               );
             },
@@ -89,6 +97,7 @@ class _HomePageState extends State<HomePage> {
       );
     });
   }
+
   // Sync the friends data with Firestore and update the local SQLite database
   Future<void> _syncFriendsWithFirestore() async {
     try {
@@ -106,8 +115,8 @@ class _HomePageState extends State<HomePage> {
       // Update local database with Firestore friends (insert or update)
       for (var friend in syncedFriends) {
         // Check if the friend already exists in the local database
-        final existingFriend = await _databaseHelper.fetchFriendByFirebaseId(
-            friend.firebaseId!);
+        final existingFriend =
+            await _databaseHelper.fetchFriendByFirebaseId(friend.firebaseId!);
         if (existingFriend == null) {
           // Insert the friend if it doesn't exist
           final insertedId = await _databaseHelper.insertFriend(friend);
@@ -129,32 +138,49 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _addOrEditEvent(Event? event) async {
+    if (event == null) {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddEventPage(
+            onAdd: (newEvent) async {
+              if (_userEmail == null) return;
+              if (newEvent.friendId != null) {
+                final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(newEvent.friendId!);
+                await _firestoreService.addFriendEventToFirestore(
+                  newEvent,
+                  _userEmail!,
+                  friendFirebaseId!,
+                );
+              } else {
+                await _firestoreService.addEventToFirestore(newEvent, _userEmail!);
+              }
+              await _databaseHelper.insertEvent(newEvent);
+              await _syncAndFetchEvents();
+            },
+            userId: widget.userId,
+            friends: friends,
+          ),
+        ),
+      );
 
-  void _navigateToCreateEvent() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            AddEventPage(
-              onAdd: (Event event) async {
-                try {
-                  await _databaseHelper.insertEvent(event);
-                  print('Event added: ${event.toMap()}');
-                  await _fetchFriends(); // Refresh after adding an event
-                } catch (error) {
-                  print('Error adding event: $error');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to add event.')),
-                  );
-                }
-              },
-              userId: widget.userId,
-              friends: friends, // Pass the friends list
-            ),
-      ),
-    );
+      if (result == true) {
+        await _syncAndFetchEvents();
+      }
+    } else {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EventEditPage(event: event, userId: widget.userId),
+        ),
+      );
+
+      if (result == true) {
+        await _syncAndFetchEvents();
+      }
+    }
   }
-
   void _navigateToFriendGifts(Friend friend) {
     if (friend.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,199 +195,252 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+  Future<void> _syncAndFetchEvents() async {
+    setState(() {
+      _isLoading = true;
+    });
 
+    try {
+      if (_userEmail == null) throw Exception("User email not found!");
+
+      // Sync events from Firestore to SQLite
+      await _firestoreService.syncEventsWithFirestore(widget.userId, _userEmail!);
+
+      // Fetch friends and their events
+      final friendss = await _databaseHelper.fetchAllFriends(widget.userId);
+      for (var friend in friends) {
+        if (friend.firebaseId != null) {
+          await _firestoreService.syncFriendEventsWithFirestore(
+            widget.userId,
+            _userEmail!,
+            friend.firebaseId!,
+          );
+        }
+      }
+
+      // Fetch events from SQLite
+      final personalEvents = await _databaseHelper.fetchEventsForUser(widget.userId, friendId: null);
+      List<Event> friendEvents = [];
+      for (var friend in friends) {
+        final eventsForFriend = await _databaseHelper.fetchEventsByFriendId(friend.id!);
+        friendEvents.addAll(eventsForFriend);
+      }
+
+      setState(() {
+        _events = personalEvents + friendEvents;
+        friends = friendss;
+      });
+    } catch (e) {
+      print('Error syncing or fetching events: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load events.')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
   @override
   Widget build(BuildContext context) {
     // Filter friends based on the search query
     List<Friend> filteredFriends = friends
         .where((friend) =>
-        friend.name.toLowerCase().contains(searchQuery.toLowerCase()))
+            friend.name.toLowerCase().contains(searchQuery.toLowerCase()))
         .toList();
 
     return Scaffold(
-        appBar: AppBar(
-            title: const Text('Friends & Events'),
-            backgroundColor: Colors.teal,
-            actions: [
-        // Notification Icon with Badge
-        StreamBuilder(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(_userEmail)
-        .collection('notifications')
-        .where('isRead', isEqualTo: false)
-        .snapshots(),
-    builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-    int unreadCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
-    return Stack(
-    children: [
-    IconButton(
-    icon: const Icon(Icons.notifications),
-    onPressed: () {
-    Navigator.push(
-    context,
-    MaterialPageRoute(
-    builder: (context) => NotificationCenterPage(userId: widget.userId),
-    ),
-    );
-    },
-    ),
-    if (unreadCount > 0)
-    Positioned(
-    right: 10,
-    top: 10,
-    child: CircleAvatar(
-    radius: 10,
-    backgroundColor: Colors.red,
-    child: Text(
-    '$unreadCount',
-    style: const TextStyle(fontSize: 12, color: Colors.white),
-    ),
-    ),
-    ),
-    ],
-    );
-    },
-    ),
-    // Popup Menu for Sorting
-    PopupMenuButton<String>(
-    onSelected: (value) {
-    setState(() {
-    sortOption = value;
-    if (value == 'Alphabetically') {
-    friends.sort((a, b) => a.name.compareTo(b.name));
-    } else if (value == 'Total Events') {
-    friends.sort((a, b) => b.upcomingEvents.compareTo(a.upcomingEvents));
-    }
-    });
-    },
-    itemBuilder: (BuildContext context) {
-    return ['Total Events', 'Alphabetically'].map((String choice) {
-    return PopupMenuItem<String>(
-    value: choice,
-    child: Text(choice),
-    );
-    }).toList();
-    },
-    ),
-    ],
-    ),
-    body: Column(
-    children: [
-    // Search Bar
-    Padding(
-    padding: const EdgeInsets.all(16.0),
-    child: TextField(
-    decoration: InputDecoration(
-    hintText: 'Search friends...',
-    prefixIcon: const Icon(Icons.search),
-    border: OutlineInputBorder(
-    borderRadius: BorderRadius.circular(8),
-    ),
-    ),
-    onChanged: (query) {
-    setState(() {
-    searchQuery = query;
-    });
-    },
-    ),
-    ),
-    // Create Event Button
-    Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-    child: ElevatedButton(
-    onPressed: _navigateToCreateEvent,
-    child: const Text(
-    'Create Your Own Event/List',
-    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-    ),
-    style: ElevatedButton.styleFrom(
-    foregroundColor: Colors.white,
-    backgroundColor: Colors.green,
-    minimumSize: const Size(double.infinity, 50),
-    shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(10),
-    ),
-    ),
-    ),
-    ),
-    // Friends List
-    Expanded(
-    child: filteredFriends.isEmpty
-    ? const Center(
-    child: Text(
-    'No friends found.',
-    style: TextStyle(fontSize: 18, color: Colors.grey),
-    ),
-    )
-        : RefreshIndicator(
-    onRefresh: _fetchFriends,
-    child: ListView.builder(
-    itemCount: filteredFriends.length,
-    itemBuilder: (context, index) {
-    final friend = filteredFriends[index];
-    return Card(
-    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-    shape: RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(12),
-    ),
-    child: ListTile(
-    contentPadding: const EdgeInsets.all(16),
-    leading: CircleAvatar(
-    backgroundImage: friend.profileImage.isNotEmpty
-    ? AssetImage(friend.profileImage)
-        : const AssetImage('assets/default_profile.png'),
-    ),
-    title: Text(
-    friend.name,
-    style: TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-    color: Colors.teal,
-    ),
-    ),
-    subtitle: Text(
-    friend.upcomingEvents > 0
-    ? 'Total Events: ${friend.upcomingEvents}'
-        : 'No Events',
-    style: TextStyle(
-    fontSize: 14,
-    color: friend.upcomingEvents > 0
-    ? Colors.green
-        : Colors.red,
-    ),
-    ),
-    trailing: const Icon(Icons.arrow_forward_ios, color: Colors.teal),
-    onTap: () => _navigateToFriendGifts(friend),
-    ),
-    );
-    },
-    ),
-    ),
-    ),
-    ],
-    ),
-    floatingActionButton: FloatingActionButton(
-    onPressed: () {
-    showDialog(
-    context: context,
-    builder: (context) => AddFriendDialog(
-    userId: widget.userId,
-    onAdd: (Friend newFriend) async {
-    setState(() {
-    if (!friends.any((friend) => friend.firebaseId == newFriend.firebaseId)) {
-    friends.add(newFriend); // Add the new friend to the list
-    }
-    });
-    print('Friend added: ${newFriend.toMap()}');
-    await _fetchFriends(); // Refresh the friends list
-    },
-    ),
-    );
-    },
-    child: const Icon(Icons.person_add),
-    backgroundColor: Colors.teal,
-    ),
+      appBar: AppBar(
+        title: const Text('Friends & Events'),
+        backgroundColor: Colors.teal,
+        actions: [
+          // Notification Icon with Badge
+          StreamBuilder(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(_userEmail)
+                .collection('notifications')
+                .where('isRead', isEqualTo: false)
+                .snapshots(),
+            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+              int unreadCount =
+                  snapshot.hasData ? snapshot.data!.docs.length : 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              NotificationCenterPage(userId: widget.userId),
+                        ),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Colors.red,
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          // Popup Menu for Sorting
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                sortOption = value;
+                if (value == 'Alphabetically') {
+                  friends.sort((a, b) => a.name.compareTo(b.name));
+                } else if (value == 'Total Events') {
+                  friends.sort(
+                      (a, b) => b.upcomingEvents.compareTo(a.upcomingEvents));
+                }
+              });
+            },
+            itemBuilder: (BuildContext context) {
+              return ['Total Events', 'Alphabetically'].map((String choice) {
+                return PopupMenuItem<String>(
+                  value: choice,
+                  child: Text(choice),
+                );
+              }).toList();
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search friends...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onChanged: (query) {
+                setState(() {
+                  searchQuery = query;
+                });
+              },
+            ),
+          ),
+          // Create Event Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: ElevatedButton(
+              onPressed:  () =>_addOrEditEvent(null),
+              child: const Text(
+                'Create Your Own Event/List',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.green,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+          // Friends List
+          Expanded(
+            child: filteredFriends.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No friends found.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _fetchFriends,
+                    child: ListView.builder(
+                      itemCount: filteredFriends.length,
+                      itemBuilder: (context, index) {
+                        final friend = filteredFriends[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            leading: CircleAvatar(
+                              backgroundImage: friend.profileImage.isNotEmpty
+                                  ? AssetImage(friend.profileImage)
+                                  : const AssetImage(
+                                      'assets/default_profile.png'),
+                            ),
+                            title: Text(
+                              friend.name,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.teal,
+                              ),
+                            ),
+                            subtitle: Text(
+                              friend.upcomingEvents > 0
+                                  ? 'Total Events: ${friend.upcomingEvents}'
+                                  : 'No Events',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: friend.upcomingEvents > 0
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                            ),
+                            trailing: const Icon(Icons.arrow_forward_ios,
+                                color: Colors.teal),
+                            onTap: () => _navigateToFriendGifts(friend),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AddFriendDialog(
+              userId: widget.userId,
+              onAdd: (Friend newFriend) async {
+                setState(() {
+                  if (!friends.any(
+                      (friend) => friend.firebaseId == newFriend.firebaseId)) {
+                    friends.add(newFriend); // Add the new friend to the list
+                  }
+                });
+                print('Friend added: ${newFriend.toMap()}');
+                await _fetchFriends(); // Refresh the friends list
+              },
+            ),
+          );
+        },
+        child: const Icon(Icons.person_add),
+        backgroundColor: Colors.teal,
+      ),
     );
   }
 }
