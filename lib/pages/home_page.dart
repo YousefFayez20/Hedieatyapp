@@ -11,7 +11,7 @@ import '../models/event.dart';
 import '../utils/database_helper.dart';
 import '../utils/firestore_service.dart';
 import 'notification_center_page.dart'; // Import FirestoreService
-
+import '../utils/bounce_button.dart';
 class HomePage extends StatefulWidget {
   final int userId;
 
@@ -425,27 +425,30 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => AddFriendDialog(
-              userId: widget.userId,
-              onAdd: (Friend newFriend) async {
-                setState(() {
-                  if (!friends.any(
-                      (friend) => friend.firebaseId == newFriend.firebaseId)) {
-                    friends.add(newFriend); // Add the new friend to the list
-                  }
-                });
-                print('Friend added: ${newFriend.toMap()}');
-                await _fetchFriends(); // Refresh the friends list
-              },
-            ),
-          );
-        },
-        child: const Icon(Icons.person_add),
-        backgroundColor: Colors.teal,
+      floatingActionButton: BounceButton(
+        onTap: () { print('Bounce Button Pressed!'); },
+        child: FloatingActionButton(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => AddFriendDialog(
+                userId: widget.userId,
+                onAdd: (Friend newFriend) async {
+                  setState(() {
+                    if (!friends.any(
+                        (friend) => friend.firebaseId == newFriend.firebaseId)) {
+                      friends.add(newFriend); // Add the new friend to the list
+                    }
+                  });
+                  print('Friend added: ${newFriend.toMap()}');
+                  await _fetchFriends(); // Refresh the friends list
+                },
+              ),
+            );
+          },
+          child: const Icon(Icons.person_add),
+          backgroundColor: Colors.teal,
+        ),
       ),
     );
   }

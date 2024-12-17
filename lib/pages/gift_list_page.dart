@@ -4,7 +4,7 @@ import '../models/gift.dart';
 import '../utils/firestore_service.dart';
 import 'gift_edit_page.dart';
 import 'notification_center_page.dart';
-
+import '../utils/bounce_button.dart';
 class GiftListPage extends StatefulWidget {
   final int eventId;
   final String eventName;
@@ -397,10 +397,13 @@ class _GiftListPageState extends State<GiftListPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEditGift(null),
-        tooltip: 'Add Gift',
-        child: const Icon(Icons.add),
+      floatingActionButton: BounceButton(
+        onTap: () { print('bounce button pressed'); },
+        child: FloatingActionButton(
+          onPressed: () => _addOrEditGift(null),
+          tooltip: 'Add Gift',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

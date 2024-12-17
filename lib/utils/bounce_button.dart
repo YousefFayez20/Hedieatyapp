@@ -21,12 +21,16 @@ class _BounceButtonState extends State<BounceButton>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
-      lowerBound: 0.9,
+      duration: const Duration(milliseconds: 150), // Faster duration for snappier effect
+      lowerBound: 0.65, // Increased shrink effect
       upperBound: 1.0,
     );
 
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(_controller);
+    // Add a bounce curve for a more dynamic effect
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutBack, // Smooth and dynamic curve
+    );
   }
 
   @override
@@ -43,6 +47,10 @@ class _BounceButtonState extends State<BounceButton>
     _controller.forward();
   }
 
+  void _onTapCancel() {
+    _controller.forward();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -51,7 +59,7 @@ class _BounceButtonState extends State<BounceButton>
         _onTapUp(details);
         widget.onTap();
       },
-      onTapCancel: _controller.forward,
+      onTapCancel: _onTapCancel,
       child: ScaleTransition(
         scale: _scaleAnimation,
         child: widget.child,

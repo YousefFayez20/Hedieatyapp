@@ -3,6 +3,7 @@ import '../utils/database_helper.dart';
 import '../models/event.dart';
 import '../models/friend.dart';
 import '../utils/firestore_service.dart';
+import '../utils/bounce_button.dart';
 import 'event_edit_page.dart';
 import 'add_event_page.dart';
 import 'gift_list_page.dart';
@@ -251,10 +252,13 @@ class _EventListPageState extends State<EventListPage> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addOrEditEvent(null),
-        tooltip: 'Add Event',
-        child: const Icon(Icons.add),
+      floatingActionButton: BounceButton(
+        onTap: () {   print('Bounce Button Pressed!');},
+        child: FloatingActionButton(
+          onPressed: () => _addOrEditEvent(null),
+          tooltip: 'Add Event',
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }
