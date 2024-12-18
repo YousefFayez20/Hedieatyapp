@@ -350,6 +350,7 @@ class FirestoreService {
           status: data['status'],
           createdAt: (data['createdAt'] as Timestamp).toDate(),
           updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          imageUrl: data['imageUrl'],
           giftFirebaseId: doc.id,
         );
       }).toList();
@@ -384,6 +385,7 @@ class FirestoreService {
           updatedAt: (data['updatedAt'] as Timestamp).toDate(),
           status: data['status'],
           category: data['category'],
+            imageUrl: data['imageUrl'],
             giftFirebaseId: doc.id
 
         );
@@ -439,6 +441,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
         'status': gift.status,
         'category': gift.category,
+        'imageUrl': gift.imageUrl,
       });
 
       print('Gift added successfully to Firestore with ID: ${docRef.id}');
@@ -583,6 +586,7 @@ class FirestoreService {
           createdAt: (data['createdAt'] as Timestamp).toDate(),
           updatedAt: (data['updatedAt'] as Timestamp).toDate(),
           status: data['status'],
+          imageUrl: data['imageUrl'],
           giftFirebaseId: doc.id,
         );
       }).toList();
@@ -607,6 +611,7 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
         'status': gift.status,
         'category': gift.category,
+        'imageUrl': gift.imageUrl,
       });
 
       print('Gift added successfully to Firestore with ID: ${docRef.id}');
@@ -655,6 +660,7 @@ class FirestoreService {
           createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
           status: data['status'] ?? 'Available',
+          imageUrl: data['imageUrl'],
           giftFirebaseId: doc.id,
         );
       }).toList();
@@ -715,6 +721,7 @@ class FirestoreService {
         'category': gift.category,
         'price': gift.price,
         'status': gift.status,
+        'imageUrl': gift.imageUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 

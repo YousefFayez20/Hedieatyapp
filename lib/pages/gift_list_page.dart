@@ -272,44 +272,57 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
   Widget _buildGiftTile(Gift gift) {
-    return ListTile(
-      tileColor: _getGiftStatusColor(gift.status),
-      title: Text(
-        gift.name,
-        style: TextStyle(
-          color: gift.status == 'Pledged' || gift.status == 'Purchased'
-              ? Colors.white
-              : Colors.black,
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      elevation: 4,
+      child: ListTile(
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: gift.imageUrl != null && gift.imageUrl!.isNotEmpty
+              ? Image.asset(
+            gift.imageUrl!,
+            width: 60,
+            height: 60,
+            fit: BoxFit.cover,
+          )
+              : const Icon(Icons.card_giftcard, size: 60), // Fallback icon
         ),
-      ),
-      subtitle: Text(
-        'Category: ${gift.category} | Price: \$${gift.price}',
-        style: TextStyle(
-          color: gift.status == 'Pledged' || gift.status == 'Purchased'
-              ? Colors.white70
-              : Colors.black87,
+        title: Text(
+          gift.name,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Category: ${gift.category}'),
+            Text('Price: \$${gift.price.toStringAsFixed(2)}'),
+            Text(
+              'Status: ${gift.status}',
+              style: TextStyle(color: _getGiftStatusColor(gift.status)),
+            ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: gift.status == 'Pledged'
+                  ? null // Disable edit for pledged gifts
+                  : () => _addOrEditGift(gift),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: gift.status == 'Pledged'
+                  ? null // Disable delete for pledged gifts
+                  : () => _confirmDelete(gift.id!, gift.giftFirebaseId),
+            ),
+          ],
+        ),
+        onTap: gift.status == 'Pledged'
+            ? null // Disable navigation for pledged gifts
+            : () => _addOrEditGift(gift),
       ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: gift.status == 'Pledged'
-                ? null // Disable edit for pledged gifts
-                : () => _addOrEditGift(gift),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: gift.status == 'Pledged'
-                ? null // Disable delete for pledged gifts
-                : () => _confirmDelete(gift.id!, gift.giftFirebaseId),
-          ),
-        ],
-      ),
-      onTap: gift.status == 'Pledged'
-          ? null // Disable navigation for pledged gifts
-          : () => _addOrEditGift(gift),
     );
   }
 
@@ -434,4 +447,5 @@ class _GiftListPageState extends State<GiftListPage> {
       label: Text(label),
     );
   }
+
 }

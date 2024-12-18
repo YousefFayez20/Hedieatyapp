@@ -27,12 +27,16 @@ class _GiftEditPageState extends State<GiftEditPage> {
   late double _price = 0.0;
   late String _status = 'Available';
   File? _imageFile;
-  final ImagePicker _picker = ImagePicker();
+  String? _selectedAssetImage;
 
   bool _isPledged = false; // To track if the gift is pledged
   String? _userEmail;
   String? _friendFirebaseId;
   String? _eventFirebaseId;
+  final List<String> _assetImages = [
+    'assets/gift_1.png',
+    'assets/gift_2.png',
+  ];
 
   @override
   void initState() {
@@ -75,9 +79,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
         _isPledged = _status == 'Pledged';
         print("Is Pledged: $_isPledged");
 
-        if (widget.gift!.imageUrl != null && widget.gift!.imageUrl!.isNotEmpty) {
-          _imageFile = File(widget.gift!.imageUrl!);
-        }
+        _selectedAssetImage = widget.gift!.imageUrl;
       }
     } catch (e) {
       print("Error initializing data: $e");
@@ -88,15 +90,32 @@ class _GiftEditPageState extends State<GiftEditPage> {
   }
 
 
-  Future<void> _pickImage() async {
-    if (_isPledged) return;
-
-    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
-    }
+  void _pickImage() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select an Image'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _assetImages.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                leading: Image.asset(_assetImages[index], width: 50, height: 50),
+                title: Text('Image ${index + 1}'),
+                onTap: () {
+                  setState(() {
+                    _selectedAssetImage = _assetImages[index];
+                  });
+                  Navigator.of(context).pop();
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
   Future<void> _saveGift() async {
     if (!_isPledged && !_formKey.currentState!.validate()) return;
@@ -114,7 +133,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
       price: _price > 0 ? _price : widget.gift?.price ?? 0,
       status: _status,
       eventId: widget.eventId,
-      imageUrl: _imageFile?.path ?? widget.gift?.imageUrl ?? '',
+      imageUrl: _selectedAssetImage ?? widget.gift?.imageUrl ?? '',
       createdAt: widget.gift?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
       giftFirebaseId: widget.gift?.giftFirebaseId,
@@ -210,12 +229,9 @@ class _GiftEditPageState extends State<GiftEditPage> {
                   onTap: _isPledged ? null : _pickImage,
                   child: CircleAvatar(
                     radius: 50,
-                    backgroundImage: _imageFile != null
-                        ? FileImage(_imageFile!)
-                        : AssetImage('assets/default_image.png') as ImageProvider,
-                    child: _imageFile == null
-                        ? const Icon(Icons.camera_alt, size: 30, color: Colors.white)
-                        : null,
+                    backgroundImage: _selectedAssetImage != null
+                        ? AssetImage(_selectedAssetImage!) as ImageProvider
+                        : const AssetImage('assets/gift_1.png'),
                   ),
                 ),
               ),
