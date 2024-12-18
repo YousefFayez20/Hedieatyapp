@@ -26,7 +26,9 @@ class _GiftListPageState extends State<GiftListPage> {
   String _sortColumn = 'name';
   bool _isAscending = true;
   bool _isSyncing = false;
-
+  String _searchQuery = '';
+  String? _selectedCategory;
+  DateTimeRange? _selectedDateRange;
   @override
   void initState() {
     super.initState();
@@ -260,6 +262,128 @@ class _GiftListPageState extends State<GiftListPage> {
     }
   }
 
+  final List<String> _categories = ['Electronics', 'Books', 'Toys', 'Clothing', 'Other'];
+
+  Widget _buildFilters() {
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Search Bar
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                    _applyFilters();
+                  },
+                ),
+              ),
+            ),
+            // Category Dropdown
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: InputDecoration(
+                  hintText: 'Category',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                ),
+                items: _categories.map((category) {
+                  return DropdownMenuItem(value: category, child: Text(category));
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCategory = value!;
+                  });
+                  _applyFilters();
+                },
+              ),
+            ),
+            // Date Picker Button
+            IconButton(
+              onPressed: _pickDateRange,
+              icon: const Icon(Icons.date_range),
+              tooltip: _selectedDateRange != null
+                  ? '${_selectedDateRange!.start.toString().split(' ')[0]} - ${_selectedDateRange!.end.toString().split(' ')[0]}'
+                  : 'Filter by Date',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterSummary() {
+    List<String> activeFilters = [];
+
+    if (_searchQuery.isNotEmpty) {
+      activeFilters.add('Name: $_searchQuery');
+    }
+    if (_selectedCategory != null) {
+      activeFilters.add('Category: $_selectedCategory');
+    }
+    if (_selectedDateRange != null) {
+      activeFilters.add(
+          'Date: ${_selectedDateRange!.start.toString().split(' ')[0]} - ${_selectedDateRange!.end.toString().split(' ')[0]}');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Text(
+        activeFilters.isNotEmpty
+            ? 'Active Filters: ' + activeFilters.join(', ')
+            : 'No active filters',
+        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+      ),
+    );
+  }
+
+  void _applyFilters() async {
+    final results = await _databaseHelper.filterGifts(
+      searchQuery: _searchQuery,
+      category: _selectedCategory,
+      startDate: _selectedDateRange?.start,
+      endDate: _selectedDateRange?.end,
+      eventId: widget.eventId,
+    );
+
+    setState(() {
+      _gifts = results; // Update the filtered gifts list
+    });
+  }
+
+  void _pickDateRange() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _selectedDateRange,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDateRange = picked; // Update the date range
+      });
+      _applyFilters();
+    }
+  }
 
   Color _getGiftStatusColor(String status) {
     switch (status) {
@@ -396,6 +520,8 @@ class _GiftListPageState extends State<GiftListPage> {
       ),
       body: Column(
         children: [
+          _buildFilters(),
+          _buildFilterSummary(),
           _buildSortOptions(),
           Expanded(
             child: _gifts.isEmpty
@@ -410,6 +536,7 @@ class _GiftListPageState extends State<GiftListPage> {
           ),
         ],
       ),
+
       floatingActionButton: BounceButton(
         onTap: () { print('bounce button pressed'); },
         child: FloatingActionButton(

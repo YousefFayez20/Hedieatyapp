@@ -337,6 +337,40 @@ class DatabaseHelper {
   }
 
 
+  Future<List<Gift>> filterGifts({
+    required String searchQuery,
+    required String? category,
+    required DateTime? startDate,
+    required DateTime? endDate,
+    required int eventId,
+  }) async {
+    final db = await database;
+    String whereClause = 'event_id = ?';
+    List<dynamic> whereArgs = [eventId];
+
+    if (searchQuery.isNotEmpty) {
+      whereClause += ' AND name LIKE ?';
+      whereArgs.add('%$searchQuery%');
+    }
+
+    if (category != null && category.isNotEmpty) {
+      whereClause += ' AND category = ?';
+      whereArgs.add(category);
+    }
+
+    if (startDate != null && endDate != null) {
+      whereClause += ' AND created_at BETWEEN ? AND ?';
+      whereArgs.addAll([startDate.toIso8601String(), endDate.toIso8601String()]);
+    }
+
+    final results = await db.query(
+      'gifts',
+      where: whereClause,
+      whereArgs: whereArgs,
+    );
+
+    return results.map((map) => Gift.fromMap(map)).toList();
+  }
 
   Future<List<Gift>> fetchGiftsByEventId(int eventId) async {
     final db = await database;
