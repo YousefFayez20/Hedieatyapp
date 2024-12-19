@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
 import '../models/gift.dart';
 import '../models/user.dart';
 import '../models/friend.dart';

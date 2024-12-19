@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
 import '../models/friend.dart';
 
 class AddEventPage extends StatefulWidget {
@@ -40,6 +40,7 @@ class _AddEventPageState extends State<AddEventPage> {
             children: [
               // Event Name Input
               TextField(
+                key: Key('event_name'),
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Event Name *'),
               ),
@@ -55,6 +56,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
               // Event Location Input
               TextField(
+                key: Key('event_location'),
                 controller: _locationController,
                 decoration: const InputDecoration(labelText: 'Location'),
               ),
@@ -114,6 +116,7 @@ class _AddEventPageState extends State<AddEventPage> {
 
               // Save Button
               ElevatedButton(
+                key: Key('save_event_button'),
                 onPressed: _saveEvent,
                 child: const Text('Save Event'),
               ),

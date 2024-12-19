@@ -32,4 +32,19 @@ class User {
       preferences: map['preferences'],
     );
   }
+  User copyWith({
+    int? id,
+    String? name,
+    String? email,
+    String? password,
+    String? preferences,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      password: password ?? this.password,
+      preferences: preferences ?? this.preferences,
+    );
+  }
 }

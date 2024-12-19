@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
+
 import '../utils/database_helper.dart';
 
 class EventEditPage extends StatefulWidget {
@@ -102,6 +103,7 @@ class _EventEditPageState extends State<EventEditPage> {
           child: ListView(
             children: [
               TextFormField(
+
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Event Name *'),
                 validator: (value) =>
@@ -147,6 +149,7 @@ class _EventEditPageState extends State<EventEditPage> {
               ),
               const SizedBox(height: 16.0),
               ElevatedButton(
+                key: Key('save_event_button'),
                 onPressed: _saveEvent,
                 child: Text(widget.event == null ? 'Add Event' : 'Save Changes'),
               ),

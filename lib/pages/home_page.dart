@@ -7,7 +7,7 @@ import '../utils/fade_page_transition.dart';
 import 'add_friend_dialog.dart';
 import 'friend_gift_list_page.dart';
 import 'add_event_page.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
 import '../utils/database_helper.dart';
 import '../utils/firestore_service.dart';
 import 'notification_center_page.dart'; // Import FirestoreService
@@ -251,8 +251,9 @@ class _HomePageState extends State<HomePage> {
         .toList();
 
     return Scaffold(
+        key: Key('home_screen'),
       appBar: AppBar(
-        title: const Text('Friends & Events'),
+        title: const Text('Friends & Events', key: Key('home_screen_text')),
         backgroundColor: Colors.teal,
         actions: [
           // Notification Icon with Badge
@@ -346,6 +347,7 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: BounceButton(
+              key: Key('add_event_button'),
               onTap: () => _addOrEditEvent(null),
               child: Container(
                 decoration: BoxDecoration(

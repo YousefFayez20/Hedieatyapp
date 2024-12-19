@@ -231,7 +231,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
                     radius: 50,
                     backgroundImage: _selectedAssetImage != null
                         ? AssetImage(_selectedAssetImage!) as ImageProvider
-                        : const AssetImage('assets/gift_1.png'),
+                        : const AssetImage('assets/gift_1 .png'),
                   ),
                 ),
               ),

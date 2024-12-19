@@ -87,6 +87,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 children: [
                   // Name Field
                   TextFormField(
+                    key: Key('name'),
                     controller: nameController,
                     decoration: InputDecoration(
                       labelText: 'Name',
@@ -105,6 +106,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Email Field
                   TextFormField(
+                    key: Key('email'),
                     controller: emailController,
                     decoration: InputDecoration(
                       labelText: 'Email',
@@ -125,6 +127,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Password Field
                   TextFormField(
+                    key: Key('password'),
                     controller: passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
@@ -146,6 +149,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Confirm Password Field
                   TextFormField(
+                    key: Key('confirm_password'),
                     controller: confirmPasswordController,
                     obscureText: true,
                     decoration: InputDecoration(
@@ -167,6 +171,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   // Sign Up Button
                   ElevatedButton(
+                    key: Key('sign_up_button'),
                     onPressed: _signUp, // Call the _signUp method when button is pressed
                     child: Text('Sign Up'),
                     style: ElevatedButton.styleFrom(

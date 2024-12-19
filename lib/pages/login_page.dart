@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/material.dart';
 import 'main_navigation.dart'; // Assuming this is the main navigation page
 import 'sign_up_page.dart'; // Import your sign-up page here
-import '/utils/database_helper.dart'; // Import your DatabaseHelper here
-import '/models/user.dart'; // Import your User model
+import '../utils/database_helper.dart'; // Import your DatabaseHelper here
+import '../models/user.dart'; // Import your User model
 import '../utils/firestore_service.dart'; // Import the FirestoreService
 
 class LoginPage extends StatefulWidget {
@@ -22,6 +22,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: Key('login_screen'),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
@@ -47,6 +48,7 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     // Email Input
                     TextFormField(
+                      key: Key('login_email_field'),
                       controller: emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
@@ -68,6 +70,7 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(height: 20),
                     // Password Input
                     TextFormField(
+                      key: Key('login_password_field'),
                       controller: passwordController,
                       obscureText: true,
                       decoration: InputDecoration(
@@ -89,6 +92,7 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(height: 30),
                     // Login Button
                     ElevatedButton(
+                      key: Key('login_button'),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           try {
@@ -133,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
                           }
                         }
                       },
-                      child: Text('Log In'),
+                      child: Text('Log In',key: Key('login_screen_text')),
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.symmetric(vertical: 15, horizontal: 50),
                         shape: RoundedRectangleBorder(
@@ -144,7 +148,9 @@ class _LoginPageState extends State<LoginPage> {
                     SizedBox(height: 20),
                     // Sign Up Redirect
                     TextButton(
+                      key: Key('navigate_to_sign_up'),
                       onPressed: () {
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => SignUpPage()),

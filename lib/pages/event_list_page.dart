@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/database_helper.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
 import '../models/friend.dart';
 import '../utils/firestore_service.dart';
 import '../utils/bounce_button.dart';
@@ -213,6 +213,7 @@ class _EventListPageState extends State<EventListPage> {
           ],
         )
             : ListView.builder(
+          key: Key('event_list'),
           itemCount: _events.length,
           itemBuilder: (context, index) {
             final event = _events[index];

@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/event.dart';
+import 'package:trial15/models/event.dart';
 import '../models/gift.dart';
 import '../models/friend.dart';
 import '../models/user.dart';
