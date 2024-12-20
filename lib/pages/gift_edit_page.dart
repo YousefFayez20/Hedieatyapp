@@ -36,6 +36,9 @@ class _GiftEditPageState extends State<GiftEditPage> {
   final List<String> _assetImages = [
     'assets/gift_1.png',
     'assets/gift_2.png',
+    'assets/gift_3.png',
+    'assets/gift_4.png',
+    'assets/gift_5.png',
   ];
 
   @override
