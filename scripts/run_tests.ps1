@@ -44,7 +44,7 @@ if ($LastExitCode -ne 0) {
 
 # Step 3: Run the integration tests
 Write-Host "Running integration tests..."
-& "$env:FLUTTER_PATH\flutter" drive --target=test_driver/app_test.dart > $testResultsLog
+& "$env:FLUTTER_PATH\flutter" drive --target=test_driver/app.dart > $testResultsLog
 
 if ($LastExitCode -ne 0) {
     Write-Host "Tests failed. Check the log file for details: $testResultsLog"

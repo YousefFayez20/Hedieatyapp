@@ -121,7 +121,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
     );
   }
   Future<void> _saveGift() async {
-    if (!_isPledged && !_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
     _formKey.currentState!.save();
 
@@ -143,17 +143,22 @@ class _GiftEditPageState extends State<GiftEditPage> {
     );
 
     try {
+      // Fetch event details
       final event = await _databaseHelper.fetchEventById(widget.eventId);
       if (event == null) throw Exception("Event not found");
 
+      // Fetch user email
       final email = await _databaseHelper.getEmailByUserId(event.userId);
       if (email == null) throw Exception("User email not found");
 
+      // Check if gift already exists
       if (gift.giftFirebaseId != null) {
         // Update existing gift
         if (event.friendId != null) {
           final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
-          if (friendFirebaseId == null) throw Exception("Friend Firebase ID is missing");
+          if (friendFirebaseId == null || friendFirebaseId.isEmpty) {
+            throw Exception("Friend Firebase ID is missing");
+          }
 
           await _firestoreService.updateGiftDetails(
             email,
@@ -170,6 +175,7 @@ class _GiftEditPageState extends State<GiftEditPage> {
             gift,
           );
         }
+
         await _databaseHelper.updateGift(gift);
         print("Gift updated successfully.");
       } else {
@@ -177,9 +183,13 @@ class _GiftEditPageState extends State<GiftEditPage> {
         String firebaseGiftId;
         if (event.friendId != null) {
           final friendFirebaseId = await _databaseHelper.getFirebaseIdByFriendId(event.friendId!);
+          if (friendFirebaseId == null || friendFirebaseId.isEmpty) {
+            throw Exception("Friend Firebase ID is missing");
+          }
+
           firebaseGiftId = await _firestoreService.addGiftToFriendEvent(
             email,
-            friendFirebaseId!,
+            friendFirebaseId,
             _eventFirebaseId!,
             gift,
           );
@@ -195,6 +205,8 @@ class _GiftEditPageState extends State<GiftEditPage> {
         await _databaseHelper.insertGift(newGift);
         print("Gift added successfully.");
       }
+
+      // Add notification for pledged gifts
       if (_status == 'Pledged') {
         await _firestoreService.addNotification(
           email,
@@ -203,7 +215,6 @@ class _GiftEditPageState extends State<GiftEditPage> {
         );
         print("Notification added for pledged gift.");
       }
-
 
       Navigator.pop(context, true);
     } catch (e) {
