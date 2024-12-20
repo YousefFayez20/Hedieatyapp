@@ -305,6 +305,7 @@ class FirestoreService {
           userId: userId,
           friendId: data['friend_id'], // Passing Firebase ID of the friend
           status: data['status'],
+          firebaseId: doc.id,
         );
       }).toList();
 

@@ -76,7 +76,7 @@ class _GiftListPageState extends State<GiftListPage> {
       if (eventFirebaseId == null || eventFirebaseId.isEmpty) {
         throw Exception("Firebase ID for the event is missing.");
       }
-
+      print("Friend event Firebase ID: $eventFirebaseId");
       if (event.friendId != null) {
         // Sync gifts for friend's event
         final friendFirebaseId =
@@ -84,7 +84,7 @@ class _GiftListPageState extends State<GiftListPage> {
         if (friendFirebaseId == null) {
           throw Exception("Friend Firebase ID is missing for the event.");
         }
-
+        print("Friend Firebase ID: $friendFirebaseId");
         await _firestoreService.syncGiftsForFriendEventWithFirestore(
           event.userId,
           email,

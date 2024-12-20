@@ -683,8 +683,10 @@ class DatabaseHelper {
     );
 
     if (results.isNotEmpty) {
+      print("Firebase ID found: ${results.first['firebase_id']}");
       return results.first['firebase_id'] as String?;
     }
+    print("No Firebase ID found for friend ID: $friendId");
     return null;
   }
 // Method to get a gift by its Firebase ID

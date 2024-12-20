@@ -10,7 +10,7 @@ void main() async {
   final DatabaseHelper dbHelper = DatabaseHelper();
 
   // Reset the database
-  //await dbHelper.resetDatabase();
+  await dbHelper.resetDatabase();
   await dbHelper.database;
 
   // Run the app
