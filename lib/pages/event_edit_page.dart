@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:trial15/models/event.dart';
-
+import '../utils/firestore_service.dart';
 import '../utils/database_helper.dart';
 
 class EventEditPage extends StatefulWidget {
@@ -51,17 +51,28 @@ class _EventEditPageState extends State<EventEditPage> {
       return; // Don't proceed if the form is invalid
     }
 
-    // Create an updated event object
     final updatedEvent = Event(
-      id: widget.event?.id, // Retain the same ID if editing
+      id: widget.event?.id,
       name: _nameController.text,
       category: _categoryController.text,
       status: _statusController.text,
       description: _descriptionController.text,
       location: _locationController.text,
       date: _eventDate,
-      userId: widget.userId, // Use the userId from the parent
+      userId: widget.userId,
+      firebaseId: widget.event?.firebaseId, // Use existing Firebase ID
+      friendId: widget.event?.friendId, // Friend ID to check if it's personal or not
     );
+
+    // Ensure the event is a personal event (friendId == null)
+    if (updatedEvent.friendId != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Editing friend-assigned events is not allowed.'),
+        ),
+      );
+      return; // Skip saving
+    }
 
     if (widget.event == null) {
       // Add new event
@@ -69,11 +80,18 @@ class _EventEditPageState extends State<EventEditPage> {
     } else {
       // Update existing event
       await _databaseHelper.updateEvent(updatedEvent);
+
+      // Sync only personal events to Firestore
+      final email = await _databaseHelper.getEmailByUserId(widget.userId);
+      if (email != null && updatedEvent.firebaseId != null) {
+        await FirestoreService().updateEventInFirestore(updatedEvent, email);
+      }
     }
 
     // Navigate back and refresh the parent list
     Navigator.pop(context, true);
   }
+
 
   Future<void> _pickDate() async {
     final pickedDate = await showDatePicker(

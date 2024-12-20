@@ -127,13 +127,16 @@ class _EventListPageState extends State<EventListPage> {
                   email,
                   friendFirebaseId!,
                 );
-
+                await _databaseHelper.insertEvent(newEvent);
+                print("Event inserted: ${newEvent.name}");
               } else {
-                await _firestoreService.addEventToFirestore(newEvent, email);
+                final firebaseId = await _firestoreService.addEventToFirestore(newEvent, email);
+                final updatedEvent = newEvent.copyWith(firebaseId: firebaseId);
+                await _databaseHelper.insertEvent(updatedEvent);
+                print("Event added with Firestore ID: $firebaseId");
               }
               print("Attempting to insert event: ${newEvent.name}");
-              await _databaseHelper.insertEvent(newEvent);
-              print("Event inserted: ${newEvent.name}");
+
               _syncAndFetchEvents();
             },
             userId: widget.userId,
@@ -163,9 +166,35 @@ class _EventListPageState extends State<EventListPage> {
   }
 
   Future<void> _deleteEvent(int id) async {
+    final event = await _databaseHelper.fetchEventById(id);
+    if (event == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Event not found.')),
+      );
+      return;
+    }
+
+    if (event.friendId != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can only delete personal events.')),
+      );
+      return;
+    }
+
+    final email = await _databaseHelper.getEmailByUserId(event.userId);
+    if (email != null && event.firebaseId != null) {
+      await FirestoreService().deleteEventFromFirestore(event.firebaseId!, email);
+    } else {
+      print('Skipping Firestore deletion as firebaseId is null');
+    }
+
     await _databaseHelper.deleteEvent(id);
     _syncAndFetchEvents();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Event deleted successfully.')),
+    );
   }
+
 
   void _confirmDelete(int id) {
     showDialog(
@@ -179,9 +208,9 @@ class _EventListPageState extends State<EventListPage> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _deleteEvent(id);
+              await _deleteEvent(id);
             },
             child: const Text('Delete'),
           ),

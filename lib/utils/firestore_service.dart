@@ -226,9 +226,9 @@ class FirestoreService {
     }
   }
   // Add event to Firestore
-  Future<void> addEventToFirestore(Event event, String email) async {
+  Future<String> addEventToFirestore(Event event, String email) async {
     try {
-      await _db.collection('users')
+      final docRef = await _db.collection('users')
           .doc(email)
           .collection('events')
           .add({
@@ -241,12 +241,14 @@ class FirestoreService {
         'status': event.status,
       });
 
-      await DatabaseHelper().updateEvent(event);
-      print('Event added to Firestore');
+      print('Event added to Firestore with ID: ${docRef.id}');
+      return docRef.id; // Return Firestore ID
     } catch (e) {
       print('Error adding event to Firestore: $e');
+      throw e;
     }
   }
+
   Future<List<Event>> fetchEventsFromFirestore(int userId,email) async {
     print("Fetching events from Firestore for email: $email");
     try {
@@ -759,6 +761,39 @@ class FirestoreService {
         }
       }
     });
+  }
+  Future<void> updateEventInFirestore(Event event, String email) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(event.firebaseId) // Use Firebase ID to locate the event
+          .update({
+        'name': event.name,
+        'description': event.description,
+        'location': event.location,
+        'category': event.category,
+        'date': event.date,
+        'status': event.status,
+      });
+      print('Event updated in Firestore.');
+    } catch (e) {
+      print('Error updating event in Firestore: $e');
+    }
+  }
+  Future<void> deleteEventFromFirestore(String firebaseId, String email) async {
+    try {
+      await _db
+          .collection('users')
+          .doc(email)
+          .collection('events')
+          .doc(firebaseId)
+          .delete();
+      print('Event deleted from Firestore.');
+    } catch (e) {
+      print('Error deleting event from Firestore: $e');
+    }
   }
 
 

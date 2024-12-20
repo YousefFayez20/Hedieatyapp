@@ -23,6 +23,33 @@ class Event {
     this.firebaseId,  // Nullable Firebase ID
   });
 
+  // Add the copyWith method
+  Event copyWith({
+    int? id,
+    String? name,
+    DateTime? date,
+    String? location,
+    String? description,
+    int? userId,
+    int? friendId,
+    String? category,
+    String? status,
+    String? firebaseId,
+  }) {
+    return Event(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      date: date ?? this.date,
+      location: location ?? this.location,
+      description: description ?? this.description,
+      userId: userId ?? this.userId,
+      friendId: friendId ?? this.friendId,
+      category: category ?? this.category,
+      status: status ?? this.status,
+      firebaseId: firebaseId ?? this.firebaseId,
+    );
+  }
+
   // Convert Event object to map (for storing in SQLite)
   Map<String, dynamic> toMap() {
     return {
