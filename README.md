@@ -1,6 +1,6 @@
 # 🎁 Hedieaty - Gift List Management App 🎁
 
-**Hedieaty** is a gift list management app designed to streamline the process of creating, managing, and sharing wish lists for special occasions such as birthdays, weddings, graduations, and holidays. The app provides a user-friendly experience, allowing users to create, modify, and share wish lists while integrating advanced features like barcode scanning, real-time cloud syncing, and notifications.
+**Hedieaty** is a gift list management app designed to streamline the process of creating, managing, and sharing wish lists for special occasions such as birthdays, weddings, graduations, and holidays. The app provides a user-friendly experience, allowing users to create, modify, and share wish lists while integrating advanced features like real-time cloud syncing and notifications.
 
 ---
 
@@ -27,7 +27,7 @@
 - **Firebase Authentication** secures user accounts.
 - **Live Updates**: Pledged and purchased gifts update in real-time.
 
-### **5️⃣ Quality Enhancements**
+### **4️⃣ Quality Enhancements**
 - **Smooth Animations**: Improved user experience with fluid transitions.
 - **Notifications**:
   - Firebase Cloud Messaging alerts users when someone pledges a gift.
@@ -35,18 +35,10 @@
 - **Advanced Search & Filtering**: Find gifts based on category, name, or event.
 - **Data Validation**: Ensures correct inputs and prevents incorrect data entry.
 
-### **6️⃣ Automated Testing**
+### **5️⃣ Automated Testing**
 - **Flutter Test Framework**: Unit tests and integration tests for core functionalities.
 - **Auto-Test Script**: Runs automated tests via ADB commands (Bash/PowerShell).
 
-### **7️⃣ Documentation & Deployment**
-- **Comprehensive User Guide** with setup instructions.
-- **Version Control Management**: The project is maintained using **Git**.
-- **Deployment**:
-  - The app will be published on the **Google Play Store, Apple App Store, and Amazon App Store**.
-  - A demonstration video is available on **YouTube**.
-
----
 
 ## 🚀 Tech Stack
 | Technology  | Purpose |
@@ -58,4 +50,3 @@
 | **Git & GitHub** | Version control |
 
 ---
-
